@@ -9,9 +9,16 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import admin_router, webhook_router, widget_router
-from app.core.config import settings
-from app.core.database import init_db
+try:
+    # When running from backend directory (e.g., uvicorn app.main:app)
+    from app.api import admin_router, webhook_router, widget_router
+    from app.core.config import settings
+    from app.core.database import init_db
+except ModuleNotFoundError:
+    # When running from root with backend prefix (e.g., docker-compose)
+    from backend.app.api import admin_router, webhook_router, widget_router
+    from backend.app.core.config import settings
+    from backend.app.core.database import init_db
 
 
 @asynccontextmanager

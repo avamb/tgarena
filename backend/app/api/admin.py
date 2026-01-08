@@ -12,14 +12,25 @@ from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel
 
 from . import admin_router
-from app.core import (
-    settings,
-    get_current_admin_user,
-    get_password_hash,
-    verify_password,
-    create_access_token,
-    AdminUser,
-)
+
+try:
+    from app.core import (
+        settings,
+        get_current_admin_user,
+        get_password_hash,
+        verify_password,
+        create_access_token,
+        AdminUser,
+    )
+except ModuleNotFoundError:
+    from backend.app.core import (
+        settings,
+        get_current_admin_user,
+        get_password_hash,
+        verify_password,
+        create_access_token,
+        AdminUser,
+    )
 
 
 # =============================================================================
