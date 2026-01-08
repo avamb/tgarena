@@ -2,6 +2,7 @@
 Admin Panel API Endpoints
 
 Handles authentication, agents, users, orders, dashboard, and webhooks management.
+All protected routes require JWT authentication via Bearer token.
 """
 
 from datetime import datetime
@@ -11,6 +12,14 @@ from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel
 
 from . import admin_router
+from app.core import (
+    settings,
+    get_current_admin_user,
+    get_password_hash,
+    verify_password,
+    create_access_token,
+    AdminUser,
+)
 
 
 # =============================================================================
@@ -95,56 +104,89 @@ class DashboardStats(BaseModel):
 
 
 # =============================================================================
-# Authentication Endpoints
+# Authentication Endpoints (No auth required)
 # =============================================================================
 
 
 @admin_router.post("/login", response_model=LoginResponse)
 async def admin_login(request: LoginRequest):
-    """Authenticate admin user and return JWT token."""
-    # TODO: Implement actual authentication
+    """Authenticate admin user and return JWT token.
+
+    For development, uses default credentials from settings.
+    In production, this should authenticate against the database.
+    """
+    # Check against default admin credentials (for development)
+    # In production, this should check against the database
+    if (request.username == settings.ADMIN_DEFAULT_USERNAME and
+        request.password == settings.ADMIN_DEFAULT_PASSWORD):
+        # Create JWT token
+        access_token = create_access_token(
+            data={
+                "sub": request.username,
+                "user_id": 1,
+                "role": "super_admin"
+            }
+        )
+        return LoginResponse(access_token=access_token)
+
     raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Authentication not yet implemented",
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid credentials",
+        headers={"WWW-Authenticate": "Bearer"},
     )
 
 
 @admin_router.post("/refresh")
-async def refresh_token():
+async def refresh_token(current_user: AdminUser = Depends(get_current_admin_user)):
     """Refresh JWT token."""
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Token refresh not yet implemented",
+    # Create new token with same user data
+    access_token = create_access_token(
+        data={
+            "sub": current_user.username,
+            "user_id": current_user.id,
+            "role": current_user.role
+        }
     )
+    return LoginResponse(access_token=access_token)
 
 
 @admin_router.post("/logout")
 async def admin_logout():
-    """Logout admin user."""
+    """Logout admin user.
+
+    Note: JWT tokens are stateless, so logout is handled client-side
+    by removing the token. This endpoint exists for API completeness.
+    """
     return {"message": "Logged out successfully"}
 
 
 # =============================================================================
-# Agent Management Endpoints
+# Agent Management Endpoints (Auth required)
 # =============================================================================
 
 
 @admin_router.get("/agents", response_model=List[AgentResponse])
-async def list_agents():
-    """Get all agents."""
-    # TODO: Implement
+async def list_agents(current_user: AdminUser = Depends(get_current_admin_user)):
+    """Get all agents. Requires authentication."""
+    # TODO: Implement database query
     return []
 
 
 @admin_router.get("/agents/{agent_id}", response_model=AgentResponse)
-async def get_agent(agent_id: int):
-    """Get agent by ID."""
+async def get_agent(
+    agent_id: int,
+    current_user: AdminUser = Depends(get_current_admin_user)
+):
+    """Get agent by ID. Requires authentication."""
     raise HTTPException(status_code=404, detail="Agent not found")
 
 
 @admin_router.post("/agents", response_model=AgentResponse)
-async def create_agent(agent: AgentCreate):
-    """Create new agent."""
+async def create_agent(
+    agent: AgentCreate,
+    current_user: AdminUser = Depends(get_current_admin_user)
+):
+    """Create new agent. Requires authentication."""
     # TODO: Implement
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
@@ -153,20 +195,30 @@ async def create_agent(agent: AgentCreate):
 
 
 @admin_router.put("/agents/{agent_id}", response_model=AgentResponse)
-async def update_agent(agent_id: int, agent: AgentCreate):
-    """Update existing agent."""
+async def update_agent(
+    agent_id: int,
+    agent: AgentCreate,
+    current_user: AdminUser = Depends(get_current_admin_user)
+):
+    """Update existing agent. Requires authentication."""
     raise HTTPException(status_code=404, detail="Agent not found")
 
 
 @admin_router.delete("/agents/{agent_id}")
-async def delete_agent(agent_id: int):
-    """Delete agent."""
+async def delete_agent(
+    agent_id: int,
+    current_user: AdminUser = Depends(get_current_admin_user)
+):
+    """Delete agent. Requires authentication."""
     raise HTTPException(status_code=404, detail="Agent not found")
 
 
 @admin_router.get("/agents/{agent_id}/stats")
-async def get_agent_stats(agent_id: int):
-    """Get statistics for specific agent."""
+async def get_agent_stats(
+    agent_id: int,
+    current_user: AdminUser = Depends(get_current_admin_user)
+):
+    """Get statistics for specific agent. Requires authentication."""
     return {
         "users": 0,
         "orders": 0,
@@ -175,7 +227,7 @@ async def get_agent_stats(agent_id: int):
 
 
 # =============================================================================
-# User Management Endpoints
+# User Management Endpoints (Auth required)
 # =============================================================================
 
 
@@ -185,61 +237,77 @@ async def list_users(
     search: Optional[str] = None,
     page: int = 1,
     page_size: int = 20,
+    current_user: AdminUser = Depends(get_current_admin_user),
 ):
-    """Get all users with optional filters."""
+    """Get all users with optional filters. Requires authentication."""
     return []
 
 
 @admin_router.get("/users/{user_id}", response_model=UserResponse)
-async def get_user(user_id: int):
-    """Get user by ID."""
+async def get_user(
+    user_id: int,
+    current_user: AdminUser = Depends(get_current_admin_user)
+):
+    """Get user by ID. Requires authentication."""
     raise HTTPException(status_code=404, detail="User not found")
 
 
 @admin_router.get("/users/{user_id}/orders", response_model=List[OrderResponse])
-async def get_user_orders(user_id: int):
-    """Get orders for specific user."""
+async def get_user_orders(
+    user_id: int,
+    current_user: AdminUser = Depends(get_current_admin_user)
+):
+    """Get orders for specific user. Requires authentication."""
     return []
 
 
 # =============================================================================
-# Order Management Endpoints
+# Order Management Endpoints (Auth required)
 # =============================================================================
 
 
 @admin_router.get("/orders", response_model=List[OrderResponse])
 async def list_orders(
-    status: Optional[str] = None,
+    order_status: Optional[str] = None,
     agent_id: Optional[int] = None,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     page: int = 1,
     page_size: int = 20,
+    current_user: AdminUser = Depends(get_current_admin_user),
 ):
-    """Get all orders with optional filters."""
+    """Get all orders with optional filters. Requires authentication."""
     return []
 
 
 @admin_router.get("/orders/{order_id}", response_model=OrderResponse)
-async def get_order(order_id: int):
-    """Get order by ID."""
+async def get_order(
+    order_id: int,
+    current_user: AdminUser = Depends(get_current_admin_user)
+):
+    """Get order by ID. Requires authentication."""
     raise HTTPException(status_code=404, detail="Order not found")
 
 
 @admin_router.get("/orders/{order_id}/tickets")
-async def get_order_tickets(order_id: int):
-    """Get tickets for specific order."""
+async def get_order_tickets(
+    order_id: int,
+    current_user: AdminUser = Depends(get_current_admin_user)
+):
+    """Get tickets for specific order. Requires authentication."""
     return []
 
 
 # =============================================================================
-# Dashboard Endpoints
+# Dashboard Endpoints (Auth required)
 # =============================================================================
 
 
 @admin_router.get("/dashboard/stats", response_model=DashboardStats)
-async def get_dashboard_stats():
-    """Get dashboard statistics."""
+async def get_dashboard_stats(
+    current_user: AdminUser = Depends(get_current_admin_user)
+):
+    """Get dashboard statistics. Requires authentication."""
     return DashboardStats(
         total_users=0,
         total_orders=0,
@@ -251,12 +319,18 @@ async def get_dashboard_stats():
 
 
 @admin_router.get("/dashboard/recent-orders")
-async def get_recent_orders(limit: int = 10):
-    """Get recent orders for dashboard."""
+async def get_recent_orders(
+    limit: int = 10,
+    current_user: AdminUser = Depends(get_current_admin_user)
+):
+    """Get recent orders for dashboard. Requires authentication."""
     return []
 
 
 @admin_router.get("/dashboard/sales-chart")
-async def get_sales_chart(period: str = "week"):
-    """Get sales chart data."""
+async def get_sales_chart(
+    period: str = "week",
+    current_user: AdminUser = Depends(get_current_admin_user)
+):
+    """Get sales chart data. Requires authentication."""
     return {"labels": [], "data": []}
