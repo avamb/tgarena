@@ -1,0 +1,104 @@
+{
+  "welcome": "Welcome to TG-Ticket-Agent!",
+  "welcome_agent": "Welcome! You are connected to agent: {agent_name}",
+  "no_agent": "Please use an agent link to get started.",
+
+  "events": {
+    "no_events": "No events available",
+    "loading": "Loading events...",
+    "next": "Next",
+    "previous": "Previous",
+    "list": "View as list",
+    "buy": "Buy ticket",
+    "details": "Details",
+    "date": "Date",
+    "time": "Time",
+    "venue": "Venue",
+    "price_from": "Price from",
+    "sold_out": "Sold out"
+  },
+
+  "tickets": {
+    "my_tickets": "My tickets",
+    "no_tickets": "You don't have any tickets yet",
+    "ticket": "Ticket",
+    "event": "Event",
+    "date": "Date and time",
+    "venue": "Venue",
+    "sector": "Sector",
+    "row": "Row",
+    "seat": "Seat",
+    "price": "Price",
+    "barcode": "Barcode",
+    "share": "Share"
+  },
+
+  "cart": {
+    "your_cart": "Your cart",
+    "empty": "Cart is empty",
+    "total": "Total",
+    "checkout": "Checkout",
+    "clear": "Clear cart",
+    "timeout": "Reservation expires in",
+    "expired": "Reservation expired. Seats released."
+  },
+
+  "order": {
+    "creating": "Creating order...",
+    "created": "Order created!",
+    "processing": "Processing payment...",
+    "paid": "Payment successful!",
+    "cancelled": "Order cancelled",
+    "failed": "Failed to create order",
+    "number": "Order number"
+  },
+
+  "payment": {
+    "pay": "Pay",
+    "total": "Total to pay",
+    "processing": "Processing payment...",
+    "success": "Payment successful!",
+    "failed": "Payment failed",
+    "cancelled": "Payment cancelled"
+  },
+
+  "errors": {
+    "generic": "An error occurred. Please try again later.",
+    "api_error": "Service temporarily unavailable",
+    "seat_taken": "Seat is already taken",
+    "session_expired": "Session expired. Please start again.",
+    "invalid_agent": "Invalid agent link",
+    "network_error": "Network error. Check your connection."
+  },
+
+  "help": {
+    "title": "Help",
+    "description": "This bot allows you to purchase event tickets.",
+    "how_to_use": "How to use",
+    "step1": "1. Click an agent link",
+    "step2": "2. Browse available events",
+    "step3": "3. Select seats and pay",
+    "step4": "4. Receive tickets in this chat!",
+    "commands": "Commands"
+  },
+
+  "commands": {
+    "start": "Start the bot",
+    "events": "Browse events",
+    "mytickets": "My tickets",
+    "help": "Help",
+    "language": "Change language"
+  },
+
+  "language": {
+    "select": "Select language",
+    "changed": "Language changed to English"
+  },
+
+  "buttons": {
+    "back": "Back",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "close": "Close"
+  }
+}

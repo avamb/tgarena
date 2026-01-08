@@ -1,0 +1,47 @@
+# =============================================================================
+# TG-Ticket-Agent Admin Panel Dockerfile
+# Multi-stage build for React admin panel
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: Build React application
+# -----------------------------------------------------------------------------
+FROM node:18-alpine as builder
+
+WORKDIR /app
+
+# Copy package files
+COPY admin/package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production=false
+
+# Copy source code
+COPY admin/ ./
+
+# Build for production
+RUN npm run build
+
+# -----------------------------------------------------------------------------
+# Stage 2: Serve with nginx
+# -----------------------------------------------------------------------------
+FROM nginx:alpine as production
+
+# Copy nginx configuration
+COPY nginx.admin.conf /etc/nginx/conf.d/default.conf
+
+# Copy built files from builder
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Create non-root user
+RUN chown -R nginx:nginx /usr/share/nginx/html && \
+    chmod -R 755 /usr/share/nginx/html
+
+# Expose port
+EXPOSE 80
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost/health || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]

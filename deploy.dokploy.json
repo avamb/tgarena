@@ -1,0 +1,70 @@
+{
+  "platform": "dokploy",
+  "mode": "docker_compose",
+  "project": {
+    "name": "TG-Ticket-Agent",
+    "description": "Multi-agent Telegram bot for selling event tickets via Bill24/TixGear platform"
+  },
+  "services": {
+    "app": {
+      "internal_port": 3000,
+      "port_env_var": "PORT",
+      "healthcheck_path": "/api/health",
+      "healthcheck_interval": 30,
+      "restart_policy": "unless-stopped",
+      "environment_required": [
+        "TELEGRAM_BOT_TOKEN",
+        "DATABASE_URL",
+        "REDIS_URL",
+        "ADMIN_JWT_SECRET"
+      ],
+      "environment_optional": [
+        "TELEGRAM_WEBHOOK_URL",
+        "BILL24_TEST_URL",
+        "BILL24_REAL_URL",
+        "BILL24_DEFAULT_ZONE",
+        "N8N_WEBHOOK_URL"
+      ]
+    },
+    "postgres": {
+      "image": "postgres:15-alpine",
+      "internal_port": 5432,
+      "volumes": ["postgres_data:/var/lib/postgresql/data"],
+      "environment_required": [
+        "POSTGRES_USER",
+        "POSTGRES_PASSWORD",
+        "POSTGRES_DB"
+      ]
+    },
+    "redis": {
+      "image": "redis:7-alpine",
+      "internal_port": 6379,
+      "volumes": ["redis_data:/data"]
+    }
+  },
+  "volumes": {
+    "postgres_data": {
+      "type": "local",
+      "description": "PostgreSQL database storage"
+    },
+    "redis_data": {
+      "type": "local",
+      "description": "Redis persistence storage"
+    }
+  },
+  "networks": {
+    "tg-ticket-network": {
+      "driver": "bridge"
+    }
+  },
+  "deployment": {
+    "strategy": "rolling",
+    "max_unavailable": 0,
+    "max_surge": 1
+  },
+  "monitoring": {
+    "healthcheck_enabled": true,
+    "logs_enabled": true,
+    "metrics_enabled": false
+  }
+}

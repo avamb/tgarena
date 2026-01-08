@@ -1,0 +1,706 @@
+<project_specification>
+  <project_name>TG-Ticket-Agent</project_name>
+
+  <overview>
+    Multi-agent Telegram bot for selling event tickets via Bill24/TixGear platform. Users access the bot through agent-specific deep links, browse events, select seats via WebApp (modified Bill24 widget), pay through integrated acquiring, and receive tickets with QR codes directly in Telegram. The system replaces email-based authentication with Telegram Chat-ID, supports multiple ticket agents, and includes an admin panel for management.
+  </overview>
+
+  <technology_stack>
+    <frontend>
+      <admin_panel>
+        <framework>React 18</framework>
+        <styling>Tailwind CSS</styling>
+        <build_tool>Vite</build_tool>
+        <state_management>React Query + Zustand</state_management>
+      </admin_panel>
+      <widget>
+        <framework>AngularJS 1.5.8 (modified existing)</framework>
+        <styling>CSS (existing + custom)</styling>
+        <key_modification>Replace email auth with Telegram Chat-ID</key_modification>
+      </widget>
+    </frontend>
+    <backend>
+      <runtime>Python 3.11+</runtime>
+      <bot_framework>aiogram 3.x</bot_framework>
+      <api_framework>FastAPI</api_framework>
+      <database>PostgreSQL 15+</database>
+      <orm>SQLAlchemy 2.0 + Alembic (migrations)</orm>
+      <queue_system>aiogram middleware + asyncio queues</queue_system>
+      <task_queue>Redis + arq (for background jobs)</task_queue>
+    </backend>
+    <communication>
+      <telegram_api>Telegram Bot API + WebApp</telegram_api>
+      <bill24_api>HTTPS POST JSON (TixGear endpoint)</bill24_api>
+      <webhooks>FastAPI endpoints for n8n integration</webhooks>
+    </communication>
+    <external_services>
+      <bill24_test_url>https://api.tixgear.com:1240/json</bill24_test_url>
+      <bill24_real_url>https://api.tixgear.com/json</bill24_real_url>
+      <n8n_webhook>Configurable endpoint for user data export</n8n_webhook>
+    </external_services>
+  </technology_stack>
+
+  <deployment>
+    <target>dokploy</target>
+    <mode>docker_compose</mode>
+    <service_port>3000</service_port>
+    <port_env_var>PORT</port_env_var>
+    <services>
+      <service name="bot">Python aiogram bot with polling/webhook</service>
+      <service name="api">FastAPI server for admin panel and webhooks</service>
+      <service name="admin">React SPA (served by nginx or API)</service>
+      <service name="widget">Modified Bill24 widget (nginx)</service>
+      <service name="postgres">PostgreSQL database</service>
+      <service name="redis">Redis for queues and caching</service>
+    </services>
+    <required_files>
+      - Dockerfile (multi-stage for bot + api)
+      - Dockerfile.admin (React build)
+      - Dockerfile.widget (nginx + widget files)
+      - docker-compose.yml
+      - docker-compose.dev.yml
+      - .env.example
+      - nginx.conf
+    </required_files>
+  </deployment>
+
+  <prerequisites>
+    <environment_setup>
+      - Python 3.11+ with pip/poetry
+      - Node.js 18+ with npm/yarn (for admin panel)
+      - PostgreSQL 15+
+      - Redis 7+
+      - Docker and Docker Compose
+      - Telegram Bot Token (from @BotFather)
+      - Bill24 Agent credentials (FID, Token)
+    </environment_setup>
+  </prerequisites>
+
+  <feature_count>200</feature_count>
+
+  <security_and_access_control>
+    <user_roles>
+      <role name="telegram_user">
+        <description>End user purchasing tickets via Telegram</description>
+        <permissions>
+          - View events for linked agent
+          - Reserve and purchase tickets
+          - View own orders and tickets
+          - Receive tickets via Telegram
+        </permissions>
+      </role>
+      <role name="super_admin">
+        <description>Main administrator with full access</description>
+        <permissions>
+          - Full CRUD on agents
+          - View all users across all agents
+          - View all orders and tickets
+          - Access dashboard and statistics
+          - Configure system settings
+          - Manage webhook configurations
+        </permissions>
+        <protected_routes>
+          - /admin/* (all admin panel routes)
+          - /api/admin/* (all admin API endpoints)
+        </protected_routes>
+      </role>
+    </user_roles>
+    <authentication>
+      <telegram_users>
+        <method>Telegram Chat-ID (automatic from Telegram)</method>
+        <session>Bill24 userId + sessionId stored in DB, linked to chat_id</session>
+      </telegram_users>
+      <admin_panel>
+        <method>JWT tokens with refresh</method>
+        <password_requirements>Min 8 chars, mixed case, numbers</password_requirements>
+        <session_timeout>24 hours (configurable)</session_timeout>
+      </admin_panel>
+    </authentication>
+    <sensitive_operations>
+      - Agent creation requires super_admin
+      - Token/credentials never exposed to frontend
+      - Bill24 API calls only from backend
+    </sensitive_operations>
+  </security_and_access_control>
+
+  <core_features>
+    <telegram_bot>
+      - Deep link handling with agent ID (?start=agent_{fid})
+      - Automatic language detection (RU default, EN fallback)
+      - Event carousel with poster, description, date
+      - "Next event" and "View list" navigation
+      - "Buy ticket" button launching WebApp
+      - Ticket delivery with QR code, barcode, event poster
+      - Share ticket functionality
+      - Session persistence across bot restarts
+      - Rate limiting and queue management (aiogram middleware)
+      - Graceful error handling with user-friendly messages
+    </telegram_bot>
+
+    <multi_agent_system>
+      - Agent registration via admin panel
+      - Deep link generation per agent (t.me/Bot?start=agent_{fid})
+      - Agent context stored in user session
+      - Agent switching when user clicks different deep link
+      - Isolated event lists per agent (GET_ALL_ACTIONS with agent's fid/token)
+      - Agent-specific Bill24 API credentials management
+    </multi_agent_system>
+
+    <bill24_integration>
+      - CREATE_USER for new Telegram users (get userId, sessionId)
+      - GET_ALL_ACTIONS for event listing
+      - GET_ACTION_EXT for event details
+      - GET_SEAT_LIST for available seats
+      - RESERVATION (RESERVE, UN_RESERVE, UN_RESERVE_ALL)
+      - GET_CART for cart management
+      - CREATE_ORDER for order creation
+      - Order status polling (GET_ORDER_INFO)
+      - GET_TICKETS_BY_ORDER for ticket retrieval
+      - PRINT_TICKETS for PDF generation
+      - Error handling for all API responses
+      - Retry logic with exponential backoff
+      - Zone switching (test/real) via configuration
+    </bill24_integration>
+
+    <webapp_widget>
+      - Modified Bill24 widget as Telegram WebApp
+      - Remove all email-related authentication
+      - Implement Telegram Chat-ID authentication
+      - Pass telegramChatId instead of email to API
+      - Receive initData from Telegram for user validation
+      - Seat selection interface (existing functionality)
+      - Cart management (existing functionality)
+      - Payment redirect to acquiring (existing functionality)
+      - Post-payment callback handling
+      - Communication with parent Telegram app
+    </webapp_widget>
+
+    <ticket_delivery>
+      - Automatic ticket fetch after successful payment
+      - QR code image generation/extraction
+      - Barcode image generation/extraction
+      - Event poster attachment
+      - Formatted ticket message with all details
+      - PDF ticket option (PRINT_TICKETS)
+      - Share button for forwarding tickets
+      - Ticket storage in user's chat history
+    </ticket_delivery>
+
+    <admin_panel>
+      - Secure login with JWT authentication
+      - Dashboard with key metrics
+      - Agent management (CRUD)
+      - User list with filtering and search
+      - Order history with status tracking
+      - Ticket sales statistics
+      - Webhook configuration for n8n
+      - System settings management
+      - Responsive design for desktop
+    </admin_panel>
+
+    <localization>
+      - Russian (default)
+      - English (fallback for non-Russian users)
+      - JSON-based translation files
+      - Easy addition of new languages
+      - Language detection from Telegram user settings
+      - All bot messages localized
+      - Admin panel in English (or configurable)
+    </localization>
+
+    <webhooks_and_integrations>
+      - POST endpoint for n8n integration
+      - User registration events
+      - Purchase completion events
+      - Configurable webhook URL in admin
+      - Webhook payload includes user data for Google Sheets
+      - Retry logic for failed webhook calls
+      - Webhook logs in admin panel
+    </webhooks_and_integrations>
+
+    <queue_and_performance>
+      - aiogram ThrottlingMiddleware for rate limiting
+      - Async message queue for high-load scenarios
+      - Redis-based task queue for background jobs
+      - Connection pooling for PostgreSQL
+      - Bill24 API request queuing
+      - Telegram API rate limit handling (30 msg/sec)
+      - Batch operations where possible
+    </queue_and_performance>
+  </core_features>
+
+  <database_schema>
+    <tables>
+      <agents>
+        - id (PK, SERIAL)
+        - fid (BIGINT, UNIQUE, Bill24 frontend ID)
+        - token (VARCHAR, Bill24 token, encrypted)
+        - name (VARCHAR, display name)
+        - zone (VARCHAR, 'test' or 'real')
+        - is_active (BOOLEAN, default true)
+        - created_at (TIMESTAMP)
+        - updated_at (TIMESTAMP)
+      </agents>
+
+      <users>
+        - id (PK, SERIAL)
+        - telegram_chat_id (BIGINT, UNIQUE)
+        - telegram_username (VARCHAR, nullable)
+        - telegram_first_name (VARCHAR)
+        - telegram_last_name (VARCHAR, nullable)
+        - telegram_language_code (VARCHAR)
+        - preferred_language (VARCHAR, 'ru' or 'en')
+        - current_agent_id (FK to agents, nullable)
+        - created_at (TIMESTAMP)
+        - updated_at (TIMESTAMP)
+        - last_active_at (TIMESTAMP)
+      </users>
+
+      <user_sessions>
+        - id (PK, SERIAL)
+        - user_id (FK to users)
+        - agent_id (FK to agents)
+        - bil24_user_id (BIGINT)
+        - bil24_session_id (VARCHAR)
+        - is_active (BOOLEAN)
+        - created_at (TIMESTAMP)
+        - expires_at (TIMESTAMP, nullable)
+      </user_sessions>
+
+      <orders>
+        - id (PK, SERIAL)
+        - user_id (FK to users)
+        - agent_id (FK to agents)
+        - bil24_order_id (BIGINT)
+        - status (VARCHAR: NEW, PROCESSING, PAID, CANCELLED)
+        - total_sum (DECIMAL)
+        - currency (VARCHAR)
+        - ticket_count (INTEGER)
+        - created_at (TIMESTAMP)
+        - updated_at (TIMESTAMP)
+        - paid_at (TIMESTAMP, nullable)
+      </orders>
+
+      <tickets>
+        - id (PK, SERIAL)
+        - order_id (FK to orders)
+        - bil24_ticket_id (BIGINT)
+        - event_name (VARCHAR)
+        - event_date (TIMESTAMP)
+        - venue_name (VARCHAR)
+        - sector (VARCHAR)
+        - row (VARCHAR)
+        - seat (VARCHAR)
+        - price (DECIMAL)
+        - qr_code_data (TEXT, base64)
+        - barcode_data (TEXT, base64)
+        - barcode_number (VARCHAR)
+        - status (VARCHAR)
+        - sent_to_user (BOOLEAN, default false)
+        - sent_at (TIMESTAMP, nullable)
+      </tickets>
+
+      <admin_users>
+        - id (PK, SERIAL)
+        - username (VARCHAR, UNIQUE)
+        - password_hash (VARCHAR)
+        - role (VARCHAR: super_admin)
+        - is_active (BOOLEAN)
+        - created_at (TIMESTAMP)
+        - last_login_at (TIMESTAMP, nullable)
+      </admin_users>
+
+      <webhook_logs>
+        - id (PK, SERIAL)
+        - event_type (VARCHAR)
+        - payload (JSONB)
+        - response_status (INTEGER, nullable)
+        - response_body (TEXT, nullable)
+        - sent_at (TIMESTAMP)
+        - success (BOOLEAN)
+      </webhook_logs>
+
+      <system_settings>
+        - key (PK, VARCHAR)
+        - value (TEXT)
+        - description (VARCHAR)
+        - updated_at (TIMESTAMP)
+      </system_settings>
+    </tables>
+  </database_schema>
+
+  <api_endpoints_summary>
+    <admin_auth>
+      - POST /api/admin/login
+      - POST /api/admin/refresh
+      - POST /api/admin/logout
+    </admin_auth>
+
+    <agents>
+      - GET /api/admin/agents
+      - GET /api/admin/agents/{id}
+      - POST /api/admin/agents
+      - PUT /api/admin/agents/{id}
+      - DELETE /api/admin/agents/{id}
+      - GET /api/admin/agents/{id}/stats
+    </agents>
+
+    <users>
+      - GET /api/admin/users
+      - GET /api/admin/users/{id}
+      - GET /api/admin/users/{id}/orders
+      - GET /api/admin/users/{id}/tickets
+    </users>
+
+    <orders>
+      - GET /api/admin/orders
+      - GET /api/admin/orders/{id}
+      - GET /api/admin/orders/{id}/tickets
+    </orders>
+
+    <dashboard>
+      - GET /api/admin/dashboard/stats
+      - GET /api/admin/dashboard/recent-orders
+      - GET /api/admin/dashboard/sales-chart
+    </dashboard>
+
+    <webhooks>
+      - GET /api/admin/webhooks/config
+      - PUT /api/admin/webhooks/config
+      - GET /api/admin/webhooks/logs
+      - POST /api/admin/webhooks/test
+    </webhooks>
+
+    <external_webhooks>
+      - POST /api/webhooks/n8n (for n8n integration)
+      - POST /api/webhooks/payment-callback (for acquiring callback)
+    </external_webhooks>
+
+    <widget_api>
+      - POST /api/widget/auth (validate Telegram initData, return session)
+      - GET /api/widget/user/{chat_id} (get Bill24 session for widget)
+    </widget_api>
+  </api_endpoints_summary>
+
+  <ui_layout>
+    <telegram_bot>
+      <event_card>
+        - Event poster image (from Bill24)
+        - Event title (fullActionName)
+        - Date and time
+        - Venue name and address
+        - Price range (minPrice - maxPrice)
+        - Age restriction
+        - Short description
+        - Inline buttons: [Buy Ticket] [Next Event] [View List]
+      </event_card>
+      <event_list>
+        - Compact list with event name and date
+        - Inline buttons for each event to view details
+        - Pagination if many events
+      </event_list>
+      <ticket_message>
+        - Event poster thumbnail
+        - Event name, date, venue
+        - Seat details (sector, row, seat)
+        - Price
+        - QR code image
+        - Barcode image
+        - Barcode number (text)
+        - Share button
+      </ticket_message>
+    </telegram_bot>
+
+    <admin_panel>
+      <main_structure>
+        - Sidebar navigation (collapsible)
+        - Top header with user info and logout
+        - Main content area
+        - Responsive layout
+      </main_structure>
+      <pages>
+        - Dashboard (stats cards, charts, recent activity)
+        - Agents (table with CRUD, deep link generator)
+        - Users (searchable table, user details modal)
+        - Orders (filterable table, order details)
+        - Tickets (grouped by order, status indicators)
+        - Webhooks (config form, logs table)
+        - Settings (system configuration)
+      </pages>
+    </admin_panel>
+  </ui_layout>
+
+  <design_system>
+    <admin_panel>
+      <color_palette>
+        - Primary: #3B82F6 (Blue)
+        - Secondary: #10B981 (Green)
+        - Accent: #F59E0B (Amber)
+        - Danger: #EF4444 (Red)
+        - Background: #F9FAFB (Light Gray)
+        - Surface: #FFFFFF (White)
+        - Text: #111827 (Dark Gray)
+      </color_palette>
+      <typography>
+        - Font: Inter (Google Fonts)
+        - Headings: Bold, sizes 2xl-4xl
+        - Body: Regular, size base
+        - Mono: JetBrains Mono (for codes/IDs)
+      </typography>
+    </admin_panel>
+    <telegram_bot>
+      - Follow Telegram native styling
+      - Use Telegram inline keyboards
+      - Emojis for visual accents
+      - Markdown formatting for messages
+    </telegram_bot>
+  </design_system>
+
+  <implementation_steps>
+    <step number="1">
+      <title>Project Setup and Infrastructure</title>
+      <tasks>
+        - Initialize Python project with Poetry
+        - Set up PostgreSQL database
+        - Set up Redis
+        - Create Docker and docker-compose files
+        - Configure environment variables
+        - Set up Alembic for migrations
+        - Create initial database schema
+      </tasks>
+    </step>
+
+    <step number="2">
+      <title>Bill24 API Client</title>
+      <tasks>
+        - Create async HTTP client for Bill24 API
+        - Implement all required commands (AUTH, CREATE_USER, GET_ALL_ACTIONS, etc.)
+        - Add error handling and retry logic
+        - Add request/response logging
+        - Create unit tests with mocked responses
+        - Test with real Bill24 test zone
+      </tasks>
+    </step>
+
+    <step number="3">
+      <title>Core Bot Functionality</title>
+      <tasks>
+        - Set up aiogram 3.x bot structure
+        - Implement deep link parsing for agent context
+        - Create user registration flow (CREATE_USER on Bill24)
+        - Store user sessions in database
+        - Implement language detection and i18n
+        - Create base message templates
+        - Add rate limiting middleware
+        - Set up Redis-based queues
+      </tasks>
+    </step>
+
+    <step number="4">
+      <title>Event Browsing</title>
+      <tasks>
+        - Implement GET_ALL_ACTIONS integration
+        - Create event card message format
+        - Build carousel navigation (next/previous)
+        - Create list view with pagination
+        - Add event caching (Redis)
+        - Handle edge cases (no events, API errors)
+      </tasks>
+    </step>
+
+    <step number="5">
+      <title>Widget Modification</title>
+      <tasks>
+        - Analyze existing widget auth flow
+        - Remove email-related code from core.js
+        - Remove email-related code from header.js
+        - Modify auth-popup.php for Telegram
+        - Update script.js email checks
+        - Add Telegram WebApp integration
+        - Pass initData from Telegram
+        - Create backend endpoint for widget auth
+        - Test seat selection flow
+        - Test payment flow
+      </tasks>
+    </step>
+
+    <step number="6">
+      <title>Order and Payment Flow</title>
+      <tasks>
+        - Implement RESERVATION commands
+        - Implement CREATE_ORDER
+        - Handle payment redirect
+        - Create payment callback endpoint
+        - Implement order status polling
+        - Store orders in database
+        - Handle payment success/failure
+      </tasks>
+    </step>
+
+    <step number="7">
+      <title>Ticket Delivery</title>
+      <tasks>
+        - Implement GET_TICKETS_BY_ORDER
+        - Extract QR and barcode images
+        - Format ticket message
+        - Send tickets to user
+        - Add share functionality
+        - Store ticket data in database
+        - Mark tickets as sent
+      </tasks>
+    </step>
+
+    <step number="8">
+      <title>FastAPI Backend</title>
+      <tasks>
+        - Set up FastAPI application
+        - Create admin authentication (JWT)
+        - Implement all admin API endpoints
+        - Create webhook endpoints
+        - Add request validation (Pydantic)
+        - Add OpenAPI documentation
+        - Create tests for all endpoints
+      </tasks>
+    </step>
+
+    <step number="9">
+      <title>Admin Panel Frontend</title>
+      <tasks>
+        - Initialize React + Vite project
+        - Set up Tailwind CSS
+        - Create authentication flow
+        - Build dashboard page
+        - Build agents management
+        - Build users list
+        - Build orders list
+        - Build webhook configuration
+        - Add responsive design
+        - Create build configuration
+      </tasks>
+    </step>
+
+    <step number="10">
+      <title>Integrations and Webhooks</title>
+      <tasks>
+        - Implement n8n webhook endpoint
+        - Add webhook configuration in admin
+        - Create webhook payload format
+        - Add webhook retry logic
+        - Implement webhook logging
+        - Test with n8n workflow
+      </tasks>
+    </step>
+
+    <step number="11">
+      <title>Testing and Polish</title>
+      <tasks>
+        - End-to-end testing of full purchase flow
+        - Load testing with multiple concurrent users
+        - Security audit
+        - Error message review
+        - Localization completeness check
+        - Documentation
+      </tasks>
+    </step>
+
+    <step number="12">
+      <title>Deployment</title>
+      <tasks>
+        - Finalize Docker configurations
+        - Create production docker-compose
+        - Set up health checks
+        - Configure logging
+        - Create deployment documentation
+        - Test deployment on Dokploy
+      </tasks>
+    </step>
+  </implementation_steps>
+
+  <success_criteria>
+    <functionality>
+      - Users can browse events for any agent via deep link
+      - Users can switch between agents seamlessly
+      - Full purchase flow works: browse → select seats → pay → receive ticket
+      - Tickets delivered with QR code, barcode, and event info
+      - Admin can manage agents and view all data
+      - Webhooks successfully send data to n8n
+    </functionality>
+    <user_experience>
+      - Bot responds within 2 seconds for simple operations
+      - Clear error messages in user's language
+      - Intuitive navigation with minimal steps to purchase
+      - Tickets are shareable and look professional
+    </user_experience>
+    <technical_quality>
+      - No crashes under normal load
+      - Handles Bill24 API errors gracefully
+      - Recovers from temporary outages
+      - All data persisted correctly in PostgreSQL
+      - Queue system prevents Telegram rate limiting
+    </technical_quality>
+    <design_polish>
+      - Consistent message formatting
+      - Admin panel is clean and functional
+      - Widget integrates smoothly as WebApp
+    </design_polish>
+  </success_criteria>
+
+  <localization_structure>
+    <file_format>JSON</file_format>
+    <location>bot/locales/{lang_code}.json</location>
+    <supported_languages>
+      - ru (Russian, default)
+      - en (English, fallback)
+    </supported_languages>
+    <example_structure>
+      {
+        "welcome": "Welcome message",
+        "events": {
+          "no_events": "No events available",
+          "next": "Next event",
+          "list": "View as list",
+          "buy": "Buy ticket"
+        },
+        "errors": {
+          "generic": "Something went wrong",
+          "api_error": "Service temporarily unavailable"
+        }
+      }
+    </example_structure>
+  </localization_structure>
+
+  <widget_modification_details>
+    <files_to_modify>
+      <file path="widget/scripts/core.js">
+        - Line 375-416: Modify Auth() function to use telegramChatId
+        - Line 173-181: Add telegramChatId loading from localStorage
+        - Line 310-361: Add telegramChatId to request data
+        - Line 489-507: Add telegramChatId to params() function
+      </file>
+      <file path="widget/scripts/header.js">
+        - Line 168-195: Replace SetEmail() with SetTelegramId()
+        - Line 197-223: Replace ConfirmEmail() with direct session setup
+        - Remove email confirmation flow entirely
+      </file>
+      <file path="widget/templates/auth-popup.php">
+        - Remove email input form
+        - Remove confirmation code form
+        - Add Telegram connection status display
+        - Auto-authenticate using Telegram initData
+      </file>
+      <file path="widget/scripts/script.js">
+        - Line 128-145: Replace GET_EMAIL with Telegram ID check
+        - Line 606, 799, 813, 973: Replace email checks with telegramChatId
+      </file>
+    </files_to_modify>
+    <new_auth_flow>
+      1. Widget loaded as Telegram WebApp
+      2. Get initData from Telegram.WebApp.initData
+      3. Send initData to backend /api/widget/auth
+      4. Backend validates initData signature
+      5. Backend returns Bill24 userId/sessionId for this chat_id
+      6. Widget stores in localStorage and proceeds
+      7. All subsequent API calls use these credentials
+    </new_auth_flow>
+  </widget_modification_details>
+</project_specification>
