@@ -15,8 +15,10 @@ export default function Agents() {
   const [agents] = useState<Agent[]>([])
   const [showModal, setShowModal] = useState(false)
 
-  const copyDeepLink = (fid: number) => {
-    const link = `https://t.me/YourBotUsername?start=agent_${fid}`
+  // Agent identification uses internal agent.id (NOT fid or token)
+  // Deep link format: ?start=agent_{agent_id}
+  const copyDeepLink = (agentId: number) => {
+    const link = `https://t.me/YourBotUsername?start=agent_${agentId}`
     navigator.clipboard.writeText(link)
     toast.success('Deep link copied!')
   }
@@ -50,8 +52,9 @@ export default function Agents() {
           <table className="table">
             <thead className="bg-gray-50">
               <tr>
+                <th>ID</th>
                 <th>Name</th>
-                <th>FID</th>
+                <th>FID (Bill24)</th>
                 <th>Zone</th>
                 <th>Status</th>
                 <th>Deep Link</th>
@@ -61,8 +64,9 @@ export default function Agents() {
             <tbody className="divide-y divide-gray-200">
               {agents.map((agent) => (
                 <tr key={agent.id}>
+                  <td className="font-mono text-sm text-gray-500">{agent.id}</td>
                   <td className="font-medium">{agent.name}</td>
-                  <td className="font-mono">{agent.fid}</td>
+                  <td className="font-mono text-sm">{agent.fid}</td>
                   <td>
                     <span className={`badge ${agent.zone === 'real' ? 'badge-success' : 'badge-warning'}`}>
                       {agent.zone}
@@ -75,7 +79,7 @@ export default function Agents() {
                   </td>
                   <td>
                     <button
-                      onClick={() => copyDeepLink(agent.fid)}
+                      onClick={() => copyDeepLink(agent.id)}
                       className="text-primary-600 hover:text-primary-800 inline-flex items-center"
                     >
                       <Copy className="h-4 w-4 mr-1" />

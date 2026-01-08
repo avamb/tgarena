@@ -14,18 +14,22 @@ router = Router()
 
 @router.message(CommandStart(deep_link=True))
 async def cmd_start_deep_link(message: Message):
-    """Handle /start command with agent deep link."""
+    """Handle /start command with agent deep link.
+
+    Agent identification uses Agent ID (internal primary key),
+    NOT fid or token. Format: ?start=agent_{agent_id}
+    """
     # Extract agent ID from deep link parameter
-    # Format: ?start=agent_{fid}
+    # Format: ?start=agent_{agent_id} (uses internal agent.id, NOT fid/token)
     args = message.text.split(maxsplit=1)
     deep_link = args[1] if len(args) > 1 else None
 
     if deep_link and deep_link.startswith("agent_"):
         try:
-            agent_fid = int(deep_link.replace("agent_", ""))
-            # TODO: Link user to agent and show events
+            agent_id = int(deep_link.replace("agent_", ""))
+            # TODO: Lookup agent by id (not fid) and link user
             await message.answer(
-                f"Welcome! You are connected to agent {agent_fid}.\n"
+                f"Welcome! You are connected to agent ID {agent_id}.\n"
                 "Use /events to browse available events."
             )
         except ValueError:

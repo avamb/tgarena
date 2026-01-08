@@ -37,13 +37,19 @@ class AgentCreate(BaseModel):
 
 
 class AgentResponse(BaseModel):
+    """Response schema for Agent.
+
+    Note: Agent identification uses internal agent.id (NOT fid or token).
+    Deep link format: ?start=agent_{agent_id}
+    The fid is the Bill24 frontend ID used for API calls, but NOT for deep links.
+    """
     id: int
     name: str
-    fid: int
+    fid: int  # Bill24 frontend ID (for API calls, NOT for deep links)
     zone: str
     is_active: bool
     created_at: datetime
-    deep_link: str
+    deep_link: str  # Generated using agent.id, NOT fid
 
     class Config:
         from_attributes = True

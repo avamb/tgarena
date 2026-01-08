@@ -152,7 +152,8 @@ Health check: `GET /api/health`
 ## User Flows
 
 ### Telegram User
-1. Click agent deep link (`t.me/Bot?start=agent_123`)
+1. Click agent deep link (`t.me/Bot?start=agent_{agent_id}`)
+   - **Note:** Deep links use the internal `agent.id`, NOT `fid` or `token`
 2. Browse events in Telegram
 3. Click "Buy Ticket" to open WebApp
 4. Select seats and complete payment
