@@ -10,6 +10,8 @@ from typing import List, Optional
 
 from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import admin_router
 
@@ -21,7 +23,9 @@ try:
         verify_password,
         create_access_token,
         AdminUser,
+        get_db,
     )
+    from app.models import Agent as AgentModel
 except ModuleNotFoundError:
     from backend.app.core import (
         settings,
@@ -30,7 +34,9 @@ except ModuleNotFoundError:
         verify_password,
         create_access_token,
         AdminUser,
+        get_db,
     )
+    from backend.app.models import Agent as AgentModel
 
 
 # =============================================================================
@@ -115,6 +121,28 @@ class DashboardStats(BaseModel):
 
 
 # =============================================================================
+# Helper Functions
+# =============================================================================
+
+
+def agent_to_response(agent: AgentModel) -> AgentResponse:
+    """Convert Agent model to AgentResponse schema.
+
+    Note: Deep link uses agent.id (NOT fid or token) for identification.
+    """
+    bot_username = settings.TELEGRAM_BOT_USERNAME or "YourBotUsername"
+    return AgentResponse(
+        id=agent.id,
+        name=agent.name,
+        fid=agent.fid,
+        zone=agent.zone,
+        is_active=agent.is_active,
+        created_at=agent.created_at,
+        deep_link=f"https://t.me/{bot_username}?start=agent_{agent.id}",
+    )
+
+
+# =============================================================================
 # Authentication Endpoints (No auth required)
 # =============================================================================
 
@@ -177,51 +205,109 @@ async def admin_logout():
 
 
 @admin_router.get("/agents", response_model=List[AgentResponse])
-async def list_agents(current_user: AdminUser = Depends(get_current_admin_user)):
+async def list_agents(
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
     """Get all agents. Requires authentication."""
-    # TODO: Implement database query
-    return []
+    result = await db.execute(select(AgentModel).order_by(AgentModel.id))
+    agents = result.scalars().all()
+    return [agent_to_response(agent) for agent in agents]
 
 
 @admin_router.get("/agents/{agent_id}", response_model=AgentResponse)
 async def get_agent(
     agent_id: int,
-    current_user: AdminUser = Depends(get_current_admin_user)
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get agent by ID. Requires authentication."""
-    raise HTTPException(status_code=404, detail="Agent not found")
+    result = await db.execute(select(AgentModel).where(AgentModel.id == agent_id))
+    agent = result.scalar_one_or_none()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return agent_to_response(agent)
 
 
-@admin_router.post("/agents", response_model=AgentResponse)
+@admin_router.post("/agents", response_model=AgentResponse, status_code=status.HTTP_201_CREATED)
 async def create_agent(
     agent: AgentCreate,
-    current_user: AdminUser = Depends(get_current_admin_user)
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Create new agent. Requires authentication."""
-    # TODO: Implement
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Agent creation not yet implemented",
+    # Check if FID already exists
+    existing = await db.execute(select(AgentModel).where(AgentModel.fid == agent.fid))
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Agent with FID {agent.fid} already exists",
+        )
+
+    # Create new agent
+    new_agent = AgentModel(
+        name=agent.name,
+        fid=agent.fid,
+        token=agent.token,  # TODO: Encrypt token before storing
+        zone=agent.zone,
+        is_active=agent.is_active,
     )
+    db.add(new_agent)
+    await db.flush()  # Get the ID without committing
+    await db.refresh(new_agent)
+
+    return agent_to_response(new_agent)
 
 
 @admin_router.put("/agents/{agent_id}", response_model=AgentResponse)
 async def update_agent(
     agent_id: int,
     agent: AgentCreate,
-    current_user: AdminUser = Depends(get_current_admin_user)
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Update existing agent. Requires authentication."""
-    raise HTTPException(status_code=404, detail="Agent not found")
+    result = await db.execute(select(AgentModel).where(AgentModel.id == agent_id))
+    existing_agent = result.scalar_one_or_none()
+    if not existing_agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    # Check if FID is being changed to one that already exists
+    if agent.fid != existing_agent.fid:
+        fid_check = await db.execute(select(AgentModel).where(AgentModel.fid == agent.fid))
+        if fid_check.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Agent with FID {agent.fid} already exists",
+            )
+
+    # Update agent fields
+    existing_agent.name = agent.name
+    existing_agent.fid = agent.fid
+    existing_agent.token = agent.token  # TODO: Encrypt token
+    existing_agent.zone = agent.zone
+    existing_agent.is_active = agent.is_active
+
+    await db.flush()
+    await db.refresh(existing_agent)
+
+    return agent_to_response(existing_agent)
 
 
 @admin_router.delete("/agents/{agent_id}")
 async def delete_agent(
     agent_id: int,
-    current_user: AdminUser = Depends(get_current_admin_user)
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Delete agent. Requires authentication."""
-    raise HTTPException(status_code=404, detail="Agent not found")
+    result = await db.execute(select(AgentModel).where(AgentModel.id == agent_id))
+    agent = result.scalar_one_or_none()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    await db.delete(agent)
+    return {"message": f"Agent '{agent.name}' deleted successfully"}
 
 
 @admin_router.get("/agents/{agent_id}/stats")

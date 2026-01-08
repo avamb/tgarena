@@ -15,19 +15,32 @@ export default function Login() {
     setLoading(true)
 
     try {
-      // TODO: Implement actual API call
-      // const response = await api.post('/admin/login', { username, password })
+      const response = await fetch('http://localhost:8000/api/admin/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      })
 
-      // Mock login for now
-      if (username === 'admin' && password === 'admin') {
-        login('mock-token', { id: 1, username: 'admin', role: 'super_admin' })
+      if (response.ok) {
+        const data = await response.json()
+        // Decode JWT to get user info (payload is base64 encoded)
+        const payload = JSON.parse(atob(data.access_token.split('.')[1]))
+        login(data.access_token, {
+          id: payload.user_id,
+          username: payload.sub,
+          role: payload.role,
+        })
         toast.success('Login successful!')
         navigate('/dashboard')
       } else {
-        toast.error('Invalid credentials')
+        const error = await response.json()
+        toast.error(error.detail || 'Invalid credentials')
       }
     } catch (error) {
-      toast.error('Login failed. Please try again.')
+      console.error('Login error:', error)
+      toast.error('Login failed. Please check your connection.')
     } finally {
       setLoading(false)
     }

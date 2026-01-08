@@ -14,11 +14,15 @@ try:
     from app.api import admin_router, webhook_router, widget_router
     from app.core.config import settings
     from app.core.database import init_db
+    # Import models to register them with Base.metadata
+    from app import models  # noqa: F401
 except ModuleNotFoundError:
     # When running from root with backend prefix (e.g., docker-compose)
     from backend.app.api import admin_router, webhook_router, widget_router
     from backend.app.core.config import settings
     from backend.app.core.database import init_db
+    # Import models to register them with Base.metadata
+    from backend.app import models  # noqa: F401
 
 
 @asynccontextmanager
