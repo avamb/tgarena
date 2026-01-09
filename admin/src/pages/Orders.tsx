@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Search, Filter, Download, Loader2, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { useSearchParams, Link } from 'react-router-dom'
+import { Search, Download, Loader2, X, ChevronLeft, ChevronRight, AlertCircle, ShoppingCart } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../store/auth'
 
@@ -15,16 +15,29 @@ interface Order {
   user_name: string
   agent_id: number
   agent_name: string
+  bil24_order_id: number
   status: string
   ticket_count: number
-  total_amount: number
+  total_sum: number
   created_at: string
+  paid_at: string | null
+}
+
+interface PaginatedOrdersResponse {
+  orders: Order[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
 }
 
 export default function Orders() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [agents, setAgents] = useState<Agent[]>([])
-  const [loading, setLoading] = useState(false)
+  const [orders, setOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
+  const [total, setTotal] = useState(0)
   const { token } = useAuthStore()
 
   // Initialize state from URL params
@@ -36,7 +49,8 @@ export default function Orders() {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get('page') || '1', 10))
-  const [totalPages, setTotalPages] = useState(5) // Mock total pages for testing
+  const [totalPages, setTotalPages] = useState(1)
+  const pageSize = 20
   const isInitialMount = useRef(true)
 
   // Reset page to 1 when filters change (but not on initial mount)
@@ -72,7 +86,7 @@ export default function Orders() {
         })
         if (response.ok) {
           const data = await response.json()
-          setAgents(data)
+          setAgents(data.agents || [])
         }
       } catch (error) {
         console.error('Failed to fetch agents:', error)
@@ -83,6 +97,50 @@ export default function Orders() {
       fetchAgents()
     }
   }, [token])
+
+  // Fetch orders
+  useEffect(() => {
+    const fetchOrders = async () => {
+      setLoading(true)
+      setFetchError(null)
+      try {
+        const params = new URLSearchParams()
+        if (status) params.set('order_status', status)
+        if (agentId) params.set('agent_id', agentId)
+        if (fromDate) params.set('start_date', fromDate)
+        if (toDate) params.set('end_date', toDate)
+        if (search) params.set('search', search)
+        params.set('page', currentPage.toString())
+        params.set('page_size', pageSize.toString())
+
+        const response = await fetch(`http://localhost:8000/api/admin/orders?${params.toString()}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        })
+
+        if (response.ok) {
+          const data: PaginatedOrdersResponse = await response.json()
+          setOrders(data.orders)
+          setTotal(data.total)
+          setTotalPages(data.total_pages)
+        } else if (response.status === 401) {
+          setFetchError('Session expired. Please login again.')
+        } else {
+          setFetchError('Failed to load orders')
+        }
+      } catch (error) {
+        console.error('Failed to fetch orders:', error)
+        setFetchError('Unable to connect to server. Please check your network connection.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (token) {
+      fetchOrders()
+    }
+  }, [token, status, agentId, fromDate, toDate, search, currentPage])
 
   const getStatusBadgeClass = (statusValue: string) => {
     switch (statusValue) {
@@ -119,16 +177,34 @@ export default function Orders() {
     }
   }
 
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('ru-RU', {
+      style: 'currency',
+      currency: 'RUB',
+    }).format(amount)
+  }
+
   // Export orders to CSV
   const exportOrders = async () => {
     try {
-      // Fetch orders from API (with current filters)
+      // Fetch all orders with current filters (no pagination limit)
       const params = new URLSearchParams()
-      if (status) params.set('status', status)
+      if (status) params.set('order_status', status)
       if (agentId) params.set('agent_id', agentId)
-      if (fromDate) params.set('from_date', fromDate)
-      if (toDate) params.set('to_date', toDate)
+      if (fromDate) params.set('start_date', fromDate)
+      if (toDate) params.set('end_date', toDate)
       if (search) params.set('search', search)
+      params.set('page_size', '1000') // Get more orders for export
 
       const response = await fetch(`http://localhost:8000/api/admin/orders?${params.toString()}`, {
         headers: {
@@ -136,33 +212,35 @@ export default function Orders() {
         },
       })
 
-      let orders: Order[] = []
+      let ordersToExport: Order[] = []
       if (response.ok) {
         const data = await response.json()
-        orders = data.orders || data || []
+        ordersToExport = data.orders || []
       }
 
       // Generate CSV content
-      const headers = ['Order ID', 'User ID', 'User Name', 'Agent ID', 'Agent Name', 'Status', 'Tickets', 'Total Amount', 'Date']
+      const headers = ['Order ID', 'Bill24 ID', 'User ID', 'User Name', 'Agent ID', 'Agent Name', 'Status', 'Tickets', 'Total Amount', 'Date', 'Paid At']
       const csvRows = [headers.join(',')]
 
-      orders.forEach((order: Order) => {
+      ordersToExport.forEach((order: Order) => {
         const row = [
           order.id,
+          order.bil24_order_id,
           order.user_id,
           `"${order.user_name || ''}"`,
           order.agent_id,
           `"${order.agent_name || ''}"`,
           order.status,
           order.ticket_count,
-          order.total_amount,
-          order.created_at
+          order.total_sum,
+          order.created_at,
+          order.paid_at || ''
         ]
         csvRows.push(row.join(','))
       })
 
       // If no orders, add a note
-      if (orders.length === 0) {
+      if (ordersToExport.length === 0) {
         csvRows.push('No orders found with current filters')
       }
 
@@ -180,11 +258,19 @@ export default function Orders() {
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
 
-      toast.success(`Exported ${orders.length} orders to CSV`)
+      toast.success(`Exported ${ordersToExport.length} orders to CSV`)
     } catch (error) {
       console.error('Failed to export orders:', error)
       toast.error('Failed to export orders')
     }
+  }
+
+  // Retry function for error state
+  const retryFetch = () => {
+    setFetchError(null)
+    setLoading(true)
+    // Trigger refetch by setting a new currentPage value then back
+    setCurrentPage(prev => prev)
   }
 
   return (
@@ -205,7 +291,7 @@ export default function Orders() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search orders..."
+                placeholder="Search by order ID..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10 w-full"
@@ -267,37 +353,93 @@ export default function Orders() {
 
       {/* Orders Table */}
       <div className="card overflow-x-auto">
-        {loading ? (
+        {fetchError ? (
+          <div className="text-center py-12">
+            <AlertCircle className="h-12 w-12 mx-auto text-amber-500 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Orders</h3>
+            <p className="text-gray-500 mb-4">{fetchError}</p>
+            <button onClick={retryFetch} className="btn btn-primary">
+              Try Again
+            </button>
+          </div>
+        ) : loading ? (
           <div className="text-center py-12">
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary-600" />
             <p className="text-gray-500 mt-2">Loading orders...</p>
           </div>
+        ) : orders.length === 0 ? (
+          <div className="text-center py-12">
+            <ShoppingCart className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No orders yet</h3>
+            <p className="text-gray-500">
+              {hasActiveFilters
+                ? 'No orders match your filters. Try adjusting your search criteria.'
+                : 'Orders will appear here when customers make purchases.'}
+            </p>
+          </div>
         ) : (
-          <table className="table">
-            <thead className="bg-gray-50">
-              <tr>
-                <th>Order ID</th>
-                <th>User</th>
-                <th>Agent</th>
-                <th>Status</th>
-                <th>Tickets</th>
-                <th>Total</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              <tr>
-                <td colSpan={7} className="text-center py-8 text-gray-500">
-                  No orders yet
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <>
+            <div className="text-sm text-gray-500 mb-4">
+              {total} order{total !== 1 ? 's' : ''} total
+            </div>
+            <table className="table">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th>Order ID</th>
+                  <th>User</th>
+                  <th>Agent</th>
+                  <th>Status</th>
+                  <th>Tickets</th>
+                  <th>Total</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {orders.map((order) => (
+                  <tr key={order.id} className="hover:bg-gray-50">
+                    <td>
+                      <Link
+                        to={`/orders/${order.id}`}
+                        className="text-primary-600 hover:text-primary-800 font-medium"
+                      >
+                        #{order.id}
+                      </Link>
+                      <div className="text-xs text-gray-400">Bill24: {order.bil24_order_id}</div>
+                    </td>
+                    <td>
+                      <Link
+                        to={`/users/${order.user_id}`}
+                        className="text-gray-900 hover:text-primary-600"
+                      >
+                        {order.user_name}
+                      </Link>
+                    </td>
+                    <td>
+                      <Link
+                        to={`/agents/${order.agent_id}`}
+                        className="text-gray-900 hover:text-primary-600"
+                      >
+                        {order.agent_name}
+                      </Link>
+                    </td>
+                    <td>
+                      <span className={`badge ${getStatusBadgeClass(order.status)}`}>
+                        {order.status}
+                      </span>
+                    </td>
+                    <td>{order.ticket_count}</td>
+                    <td>{formatCurrency(order.total_sum)}</td>
+                    <td className="text-sm text-gray-500">{formatDate(order.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
         )}
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {totalPages > 1 && !loading && !fetchError && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-500">
             Page {currentPage} of {totalPages}
@@ -313,19 +455,32 @@ export default function Orders() {
             </button>
             {/* Page numbers */}
             <div className="flex items-center space-x-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => goToPage(page)}
-                  className={`px-3 py-1 text-sm rounded ${
-                    page === currentPage
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                // Show pages around current page
+                let page: number
+                if (totalPages <= 5) {
+                  page = i + 1
+                } else if (currentPage <= 3) {
+                  page = i + 1
+                } else if (currentPage >= totalPages - 2) {
+                  page = totalPages - 4 + i
+                } else {
+                  page = currentPage - 2 + i
+                }
+                return (
+                  <button
+                    key={page}
+                    onClick={() => goToPage(page)}
+                    className={`px-3 py-1 text-sm rounded ${
+                      page === currentPage
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                )
+              })}
             </div>
             <button
               onClick={() => goToPage(currentPage + 1)}

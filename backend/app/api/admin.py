@@ -26,7 +26,7 @@ try:
         get_db,
     )
     from app.core.rate_limiter import login_rate_limiter
-    from app.models import Agent as AgentModel, User as UserModel, Order as OrderModel
+    from app.models import Agent as AgentModel, User as UserModel, Order as OrderModel, Ticket as TicketModel
 except ModuleNotFoundError:
     from backend.app.core import (
         settings,
@@ -38,7 +38,7 @@ except ModuleNotFoundError:
         get_db,
     )
     from backend.app.core.rate_limiter import login_rate_limiter
-    from backend.app.models import Agent as AgentModel, User as UserModel, Order as OrderModel
+    from backend.app.models import Agent as AgentModel, User as UserModel, Order as OrderModel, Ticket as TicketModel
 
 
 # =============================================================================
@@ -111,6 +111,44 @@ class OrderResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class TicketResponse(BaseModel):
+    id: int
+    order_id: int
+    bil24_ticket_id: int
+    event_name: str
+    event_date: datetime
+    venue_name: str
+    sector: Optional[str]
+    row: Optional[str]
+    seat: Optional[str]
+    price: float
+    barcode_number: Optional[str]
+    status: str
+    sent_to_user: bool
+    sent_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class OrderDetailResponse(BaseModel):
+    """Detailed order response with user, agent, and tickets info."""
+    id: int
+    user_id: int
+    user_name: str
+    agent_id: int
+    agent_name: str
+    bil24_order_id: int
+    status: str
+    total_sum: float
+    currency: str
+    ticket_count: int
+    created_at: datetime
+    updated_at: datetime
+    paid_at: Optional[datetime]
+    tickets: List[TicketResponse]
 
 
 class DashboardStats(BaseModel):
@@ -529,36 +567,239 @@ async def get_user_orders(
 # =============================================================================
 
 
-@admin_router.get("/orders", response_model=List[OrderResponse])
+class PaginatedOrdersResponse(BaseModel):
+    """Paginated response for orders list."""
+    orders: List[OrderResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+class OrderListItem(BaseModel):
+    """Order list item with user and agent names."""
+    id: int
+    user_id: int
+    user_name: str
+    agent_id: int
+    agent_name: str
+    bil24_order_id: int
+    status: str
+    total_sum: float
+    ticket_count: int
+    created_at: datetime
+    paid_at: Optional[datetime]
+
+
+class PaginatedOrderListResponse(BaseModel):
+    """Paginated response for orders list with user/agent names."""
+    orders: List[OrderListItem]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+@admin_router.get("/orders", response_model=PaginatedOrderListResponse)
 async def list_orders(
     order_status: Optional[str] = None,
     agent_id: Optional[int] = None,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
+    search: Optional[str] = None,
     page: int = 1,
     page_size: int = 20,
     current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get all orders with optional filters. Requires authentication."""
-    return []
+    from sqlalchemy.orm import joinedload
+
+    # Build base query with relationships
+    base_query = select(OrderModel).options(
+        joinedload(OrderModel.user),
+        joinedload(OrderModel.agent),
+    )
+
+    # Apply filters
+    if order_status:
+        base_query = base_query.where(OrderModel.status == order_status)
+
+    if agent_id:
+        base_query = base_query.where(OrderModel.agent_id == agent_id)
+
+    if start_date:
+        base_query = base_query.where(OrderModel.created_at >= start_date)
+
+    if end_date:
+        base_query = base_query.where(OrderModel.created_at <= end_date)
+
+    if search:
+        # Search by order ID or Bill24 order ID
+        search_pattern = f"%{search}%"
+        base_query = base_query.where(
+            or_(
+                func.cast(OrderModel.id, String).ilike(search_pattern),
+                func.cast(OrderModel.bil24_order_id, String).ilike(search_pattern),
+            )
+        )
+
+    # Get total count
+    count_query = select(func.count()).select_from(base_query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+
+    # Calculate total pages
+    total_pages = max(1, (total + page_size - 1) // page_size)
+
+    # Order and paginate
+    query = base_query.order_by(OrderModel.created_at.desc())
+    offset = (page - 1) * page_size
+    query = query.offset(offset).limit(page_size)
+
+    result = await db.execute(query)
+    orders = result.unique().scalars().all()
+
+    # Build response with user/agent names
+    order_items = []
+    for order in orders:
+        user_name = f"{order.user.telegram_first_name or ''} {order.user.telegram_last_name or ''}".strip()
+        if not user_name and order.user.telegram_username:
+            user_name = f"@{order.user.telegram_username}"
+        elif not user_name:
+            user_name = f"User #{order.user_id}"
+
+        order_items.append(OrderListItem(
+            id=order.id,
+            user_id=order.user_id,
+            user_name=user_name,
+            agent_id=order.agent_id,
+            agent_name=order.agent.name,
+            bil24_order_id=order.bil24_order_id,
+            status=order.status,
+            total_sum=float(order.total_sum),
+            ticket_count=order.ticket_count,
+            created_at=order.created_at,
+            paid_at=order.paid_at,
+        ))
+
+    return PaginatedOrderListResponse(
+        orders=order_items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
 
 
-@admin_router.get("/orders/{order_id}", response_model=OrderResponse)
+@admin_router.get("/orders/{order_id}", response_model=OrderDetailResponse)
 async def get_order(
     order_id: int,
-    current_user: AdminUser = Depends(get_current_admin_user)
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    """Get order by ID. Requires authentication."""
-    raise HTTPException(status_code=404, detail="Order not found")
+    """Get order by ID with full details. Requires authentication."""
+    from sqlalchemy.orm import joinedload
+
+    result = await db.execute(
+        select(OrderModel)
+        .options(
+            joinedload(OrderModel.user),
+            joinedload(OrderModel.agent),
+            joinedload(OrderModel.tickets),
+        )
+        .where(OrderModel.id == order_id)
+    )
+    order = result.unique().scalar_one_or_none()
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # Build user name
+    user_name = f"{order.user.telegram_first_name or ''} {order.user.telegram_last_name or ''}".strip()
+    if not user_name and order.user.telegram_username:
+        user_name = f"@{order.user.telegram_username}"
+    elif not user_name:
+        user_name = f"User #{order.user_id}"
+
+    # Build tickets response
+    tickets = [
+        TicketResponse(
+            id=ticket.id,
+            order_id=ticket.order_id,
+            bil24_ticket_id=ticket.bil24_ticket_id,
+            event_name=ticket.event_name,
+            event_date=ticket.event_date,
+            venue_name=ticket.venue_name,
+            sector=ticket.sector,
+            row=ticket.row,
+            seat=ticket.seat,
+            price=float(ticket.price),
+            barcode_number=ticket.barcode_number,
+            status=ticket.status,
+            sent_to_user=ticket.sent_to_user,
+            sent_at=ticket.sent_at,
+        )
+        for ticket in order.tickets
+    ]
+
+    return OrderDetailResponse(
+        id=order.id,
+        user_id=order.user_id,
+        user_name=user_name,
+        agent_id=order.agent_id,
+        agent_name=order.agent.name,
+        bil24_order_id=order.bil24_order_id,
+        status=order.status,
+        total_sum=float(order.total_sum),
+        currency=order.currency,
+        ticket_count=order.ticket_count,
+        created_at=order.created_at,
+        updated_at=order.updated_at,
+        paid_at=order.paid_at,
+        tickets=tickets,
+    )
 
 
-@admin_router.get("/orders/{order_id}/tickets")
+@admin_router.get("/orders/{order_id}/tickets", response_model=List[TicketResponse])
 async def get_order_tickets(
     order_id: int,
-    current_user: AdminUser = Depends(get_current_admin_user)
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get tickets for specific order. Requires authentication."""
-    return []
+    # First verify order exists
+    order_result = await db.execute(
+        select(OrderModel).where(OrderModel.id == order_id)
+    )
+    if not order_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # Get tickets
+    result = await db.execute(
+        select(TicketModel).where(TicketModel.order_id == order_id)
+    )
+    tickets = result.scalars().all()
+
+    return [
+        TicketResponse(
+            id=ticket.id,
+            order_id=ticket.order_id,
+            bil24_ticket_id=ticket.bil24_ticket_id,
+            event_name=ticket.event_name,
+            event_date=ticket.event_date,
+            venue_name=ticket.venue_name,
+            sector=ticket.sector,
+            row=ticket.row,
+            seat=ticket.seat,
+            price=float(ticket.price),
+            barcode_number=ticket.barcode_number,
+            status=ticket.status,
+            sent_to_user=ticket.sent_to_user,
+            sent_at=ticket.sent_at,
+        )
+        for ticket in tickets
+    ]
 
 
 # =============================================================================

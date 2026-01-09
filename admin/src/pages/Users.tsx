@@ -46,14 +46,16 @@ export default function Users() {
   useEffect(() => {
     const fetchAgents = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/admin/agents', {
+        // Fetch all agents (set high page_size to get all in one request)
+        const response = await fetch('http://localhost:8000/api/admin/agents?page_size=1000', {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
         })
         if (response.ok) {
           const data = await response.json()
-          setAgents(data)
+          // API returns paginated response with agents array
+          setAgents(data.agents || [])
         }
       } catch (error) {
         console.error('Failed to fetch agents:', error)
@@ -85,7 +87,8 @@ export default function Users() {
       })
       if (response.ok) {
         const data = await response.json()
-        setUsers(data)
+        // API returns paginated response with users array
+        setUsers(data.users || [])
       }
     } catch (error) {
       console.error('Failed to fetch users:', error)

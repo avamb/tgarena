@@ -9,6 +9,7 @@ import AgentDetails from './pages/AgentDetails'
 import Users from './pages/Users'
 import UserDetails from './pages/UserDetails'
 import Orders from './pages/Orders'
+import OrderDetails from './pages/OrderDetails'
 import Webhooks from './pages/Webhooks'
 import Settings from './pages/Settings'
 import NotFound from './pages/NotFound'
@@ -48,6 +49,7 @@ function App() {
         <Route path="users" element={<Users />} />
         <Route path="users/:id" element={<UserDetails />} />
         <Route path="orders" element={<Orders />} />
+        <Route path="orders/:id" element={<OrderDetails />} />
         <Route path="webhooks" element={<Webhooks />} />
         <Route path="settings" element={<Settings />} />
       </Route>
