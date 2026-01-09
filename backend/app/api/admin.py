@@ -377,10 +377,15 @@ async def list_users(
 @admin_router.get("/users/{user_id}", response_model=UserResponse)
 async def get_user(
     user_id: int,
-    current_user: AdminUser = Depends(get_current_admin_user)
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get user by ID. Requires authentication."""
-    raise HTTPException(status_code=404, detail="User not found")
+    result = await db.execute(select(UserModel).where(UserModel.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
 
 
 @admin_router.get("/users/{user_id}/orders", response_model=List[OrderResponse])
@@ -436,16 +441,33 @@ async def get_order_tickets(
 
 @admin_router.get("/dashboard/stats", response_model=DashboardStats)
 async def get_dashboard_stats(
-    current_user: AdminUser = Depends(get_current_admin_user)
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get dashboard statistics. Requires authentication."""
+    # Get total users count
+    users_result = await db.execute(select(func.count(UserModel.id)))
+    total_users = users_result.scalar() or 0
+
+    # Get active agents count
+    agents_result = await db.execute(
+        select(func.count(AgentModel.id)).where(AgentModel.is_active == True)
+    )
+    active_agents = agents_result.scalar() or 0
+
+    # TODO: Get orders and revenue once Order model is implemented
+    total_orders = 0
+    total_revenue = 0.0
+    orders_today = 0
+    revenue_today = 0.0
+
     return DashboardStats(
-        total_users=0,
-        total_orders=0,
-        total_revenue=0.0,
-        active_agents=0,
-        orders_today=0,
-        revenue_today=0.0,
+        total_users=total_users,
+        total_orders=total_orders,
+        total_revenue=total_revenue,
+        active_agents=active_agents,
+        orders_today=orders_today,
+        revenue_today=revenue_today,
     )
 
 

@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard'
 import Agents from './pages/Agents'
 import AgentDetails from './pages/AgentDetails'
 import Users from './pages/Users'
+import UserDetails from './pages/UserDetails'
 import Orders from './pages/Orders'
 import Webhooks from './pages/Webhooks'
 import Settings from './pages/Settings'
@@ -58,6 +59,10 @@ export const router = createBrowserRouter([
       {
         path: 'users',
         element: <Users />,
+      },
+      {
+        path: 'users/:id',
+        element: <UserDetails />,
       },
       {
         path: 'orders',
