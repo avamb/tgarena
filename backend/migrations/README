@@ -1,0 +1,55 @@
+# Database Migrations
+
+This directory contains Alembic database migrations for TG-Ticket-Agent.
+
+## Setup
+
+The migrations are configured to work with PostgreSQL async driver (asyncpg).
+
+## Running Migrations
+
+From the `backend` directory:
+
+```bash
+# Apply all pending migrations
+alembic upgrade head
+
+# Downgrade by one revision
+alembic downgrade -1
+
+# Show current revision
+alembic current
+
+# Generate a new migration (autogenerate from model changes)
+alembic revision --autogenerate -m "Description of changes"
+
+# Generate empty migration
+alembic revision -m "Description of changes"
+```
+
+## Docker Environment
+
+When running in Docker, use:
+
+```bash
+docker-compose exec api alembic upgrade head
+docker-compose exec api alembic downgrade -1
+```
+
+## Initial Setup
+
+For a fresh database, the initial migration (001_initial) creates all tables:
+- agents
+- users
+- user_sessions
+- orders
+- tickets
+- admin_users
+- webhook_logs
+- system_settings
+
+## Notes
+
+- The application uses SQLAlchemy 2.0 with async sessions
+- Migrations use postgresql+asyncpg driver
+- Database URL is loaded from settings (environment variables)

@@ -8,7 +8,7 @@ All protected routes require JWT authentication via Bearer token.
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import select, or_, func, String
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +25,7 @@ try:
         AdminUser,
         get_db,
     )
+    from app.core.rate_limiter import login_rate_limiter
     from app.models import Agent as AgentModel, User as UserModel
 except ModuleNotFoundError:
     from backend.app.core import (
@@ -36,6 +37,7 @@ except ModuleNotFoundError:
         AdminUser,
         get_db,
     )
+    from backend.app.core.rate_limiter import login_rate_limiter
     from backend.app.models import Agent as AgentModel, User as UserModel
 
 
@@ -148,16 +150,25 @@ def agent_to_response(agent: AgentModel) -> AgentResponse:
 
 
 @admin_router.post("/login", response_model=LoginResponse)
-async def admin_login(request: LoginRequest):
+async def admin_login(http_request: Request, request: LoginRequest):
     """Authenticate admin user and return JWT token.
 
     For development, uses default credentials from settings.
     In production, this should authenticate against the database.
+
+    Rate limited to prevent brute force attacks (5 attempts per minute per IP).
     """
+    # Check rate limit before processing login
+    rate_limit_error = login_rate_limiter.check_rate_limit(http_request)
+    if rate_limit_error:
+        raise rate_limit_error
+
     # Check against default admin credentials (for development)
     # In production, this should check against the database
     if (request.username == settings.ADMIN_DEFAULT_USERNAME and
         request.password == settings.ADMIN_DEFAULT_PASSWORD):
+        # Clear rate limit attempts on successful login
+        login_rate_limiter.clear_attempts(http_request)
         # Create JWT token
         access_token = create_access_token(
             data={
@@ -167,6 +178,11 @@ async def admin_login(request: LoginRequest):
             }
         )
         return LoginResponse(access_token=access_token)
+
+    # Record failed attempt and check if limit exceeded
+    rate_limit_error = login_rate_limiter.record_attempt(http_request)
+    if rate_limit_error:
+        raise rate_limit_error
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
