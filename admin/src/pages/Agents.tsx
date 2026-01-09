@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Plus, Edit, Trash2, Copy, X, Save, Loader2, BarChart3, Users, ShoppingCart, DollarSign, AlertTriangle } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Plus, Edit, Trash2, Copy, X, Save, Loader2, BarChart3, Users, ShoppingCart, DollarSign, AlertTriangle, ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../store/auth'
-import { useBlocker, useNavigate, Link } from 'react-router-dom'
+import { useBlocker, useNavigate, Link, useSearchParams } from 'react-router-dom'
 
 interface Agent {
   id: number
@@ -38,6 +38,7 @@ const initialFormData: AgentFormData = {
 }
 
 export default function Agents() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [agents, setAgents] = useState<Agent[]>([])
   const [showModal, setShowModal] = useState(false)
   const [showStatsModal, setShowStatsModal] = useState(false)
@@ -54,6 +55,15 @@ export default function Agents() {
   const authToken = useAuthStore((state) => state.token)
   const logout = useAuthStore((state) => state.logout)
   const navigate = useNavigate()
+
+  // Pagination state
+  const [search, setSearch] = useState(searchParams.get('search') || '')
+  const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get('page') || '1', 10))
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalAgents, setTotalAgents] = useState(0)
+  const pageSize = 10
+  const isInitialMount = useRef(true)
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Handle 401 unauthorized - session expired
   const handleUnauthorized = useCallback(() => {
@@ -80,23 +90,47 @@ export default function Agents() {
       hasUnsavedChanges() && currentLocation.pathname !== nextLocation.pathname
   )
 
-  // Fetch agents on component mount
+  // Reset page to 1 when search changes (but not on initial mount)
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      return
+    }
+    setCurrentPage(1)
+  }, [search])
+
+  // Update URL when filters or page change
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (search) params.set('search', search)
+    if (currentPage > 1) params.set('page', currentPage.toString())
+    setSearchParams(params, { replace: true })
+  }, [search, currentPage, setSearchParams])
+
+  // Fetch agents when page or search changes
   useEffect(() => {
     fetchAgents()
-  }, [])
+  }, [currentPage, search])
 
   const fetchAgents = async () => {
     setLoadingAgents(true)
     setFetchError(null)
     try {
-      const response = await fetch('http://localhost:8000/api/admin/agents', {
+      const params = new URLSearchParams()
+      params.set('page', currentPage.toString())
+      params.set('page_size', pageSize.toString())
+      if (search) params.set('search', search)
+
+      const response = await fetch(`http://localhost:8000/api/admin/agents?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${authToken}`,
         },
       })
       if (response.ok) {
         const data = await response.json()
-        setAgents(data)
+        setAgents(data.agents || [])
+        setTotalPages(data.total_pages || 1)
+        setTotalAgents(data.total || 0)
       } else if (response.status === 401) {
         handleUnauthorized()
         return
@@ -108,6 +142,25 @@ export default function Agents() {
       setFetchError('Unable to connect to server. Please check your network connection.')
     } finally {
       setLoadingAgents(false)
+    }
+  }
+
+  // Debounced search handler
+  const handleSearchChange = (value: string) => {
+    // Clear any pending timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
+    }
+    // Set a new timeout for debounced search
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearch(value)
+    }, 300)
+  }
+
+  // Pagination handlers
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page)
     }
   }
 
@@ -308,6 +361,38 @@ export default function Agents() {
         </button>
       </div>
 
+      {/* Search Filter */}
+      <div className="card">
+        <div className="flex items-center gap-4">
+          <div className="flex-1 max-w-md relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search agents by name or FID..."
+              defaultValue={search}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="pl-10 w-full"
+            />
+          </div>
+          {search && (
+            <button
+              onClick={() => {
+                setSearch('')
+                const input = document.querySelector('input[placeholder*="Search agents"]') as HTMLInputElement
+                if (input) input.value = ''
+              }}
+              className="btn btn-secondary text-sm"
+            >
+              <X className="h-4 w-4 mr-1" />
+              Clear
+            </button>
+          )}
+          <div className="text-sm text-gray-500">
+            {totalAgents} agent{totalAgents !== 1 ? 's' : ''} total
+          </div>
+        </div>
+      </div>
+
       <div className="card overflow-x-auto">
         {loadingAgents ? (
           <div className="text-center py-12">
@@ -413,6 +498,62 @@ export default function Agents() {
           </table>
         )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-500">
+            Page {currentPage} of {totalPages}
+          </div>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="btn btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous
+            </button>
+            {/* Page numbers */}
+            <div className="flex items-center space-x-1">
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                // Show pages around current page
+                let page: number
+                if (totalPages <= 5) {
+                  page = i + 1
+                } else if (currentPage <= 3) {
+                  page = i + 1
+                } else if (currentPage >= totalPages - 2) {
+                  page = totalPages - 4 + i
+                } else {
+                  page = currentPage - 2 + i
+                }
+                return (
+                  <button
+                    key={page}
+                    onClick={() => goToPage(page)}
+                    className={`px-3 py-1 text-sm rounded ${
+                      page === currentPage
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                )
+              })}
+            </div>
+            <button
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="btn btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Add/Edit Modal */}
       {showModal && (

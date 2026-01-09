@@ -220,15 +220,60 @@ async def admin_logout():
 # =============================================================================
 
 
-@admin_router.get("/agents", response_model=List[AgentResponse])
+class PaginatedAgentsResponse(BaseModel):
+    """Paginated response for agents list."""
+    agents: List[AgentResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+@admin_router.get("/agents", response_model=PaginatedAgentsResponse)
 async def list_agents(
+    search: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 10,
     current_user: AdminUser = Depends(get_current_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get all agents. Requires authentication."""
-    result = await db.execute(select(AgentModel).order_by(AgentModel.id))
+    """Get all agents with optional search and pagination. Requires authentication."""
+    # Build base query
+    base_query = select(AgentModel)
+
+    # Apply search filter
+    if search:
+        search_pattern = f"%{search}%"
+        base_query = base_query.where(
+            or_(
+                AgentModel.name.ilike(search_pattern),
+                func.cast(AgentModel.fid, String).ilike(search_pattern),
+            )
+        )
+
+    # Get total count before pagination
+    count_query = select(func.count()).select_from(base_query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+
+    # Calculate total pages
+    total_pages = max(1, (total + page_size - 1) // page_size)
+
+    # Order and paginate
+    query = base_query.order_by(AgentModel.id)
+    offset = (page - 1) * page_size
+    query = query.offset(offset).limit(page_size)
+
+    result = await db.execute(query)
     agents = result.scalars().all()
-    return [agent_to_response(agent) for agent in agents]
+
+    return PaginatedAgentsResponse(
+        agents=[agent_to_response(agent) for agent in agents],
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
 
 
 @admin_router.get("/agents/{agent_id}", response_model=AgentResponse)
@@ -384,31 +429,43 @@ async def get_agent_stats(
 # =============================================================================
 
 
-@admin_router.get("/users", response_model=List[UserResponse])
+class PaginatedUsersResponse(BaseModel):
+    """Paginated response for users list."""
+    users: List[UserResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+@admin_router.get("/users", response_model=PaginatedUsersResponse)
 async def list_users(
     agent_id: Optional[int] = None,
     search: Optional[str] = None,
     page: int = 1,
-    page_size: int = 20,
+    page_size: int = 10,
     current_user: AdminUser = Depends(get_current_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get all users with optional filters. Requires authentication.
+    """Get all users with optional filters and pagination. Requires authentication.
 
     Filters:
     - agent_id: Filter by current agent
     - search: Search in username, first name, last name, or chat_id
+
+    Returns paginated response with total count for accurate page calculation.
     """
-    query = select(UserModel)
+    # Build base query for filtering
+    base_query = select(UserModel)
 
     # Apply agent filter
     if agent_id:
-        query = query.where(UserModel.current_agent_id == agent_id)
+        base_query = base_query.where(UserModel.current_agent_id == agent_id)
 
     # Apply search filter
     if search:
         search_pattern = f"%{search}%"
-        query = query.where(
+        base_query = base_query.where(
             or_(
                 UserModel.telegram_username.ilike(search_pattern),
                 UserModel.telegram_first_name.ilike(search_pattern),
@@ -417,8 +474,16 @@ async def list_users(
             )
         )
 
+    # Get total count before pagination
+    count_query = select(func.count()).select_from(base_query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+
+    # Calculate total pages
+    total_pages = max(1, (total + page_size - 1) // page_size)
+
     # Order by created_at descending (newest first)
-    query = query.order_by(UserModel.created_at.desc())
+    query = base_query.order_by(UserModel.created_at.desc())
 
     # Apply pagination
     offset = (page - 1) * page_size
@@ -427,7 +492,13 @@ async def list_users(
     result = await db.execute(query)
     users = result.scalars().all()
 
-    return users
+    return PaginatedUsersResponse(
+        users=users,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
 
 
 @admin_router.get("/users/{user_id}", response_model=UserResponse)
