@@ -40,8 +40,16 @@ Percentage Complete: 63.2%
 ### Next Steps
 
 - Most remaining features require external integrations (Telegram, Bill24)
-- Continue checking for implementable admin features
 - Consider updating Users page pagination UI similarly
+- All 74 remaining features require external integrations:
+  - Telegram Bot: /start command, deep links, event carousel, messages
+  - Bill24 API: CREATE_USER, GET_ALL_ACTIONS, RESERVATION, CREATE_ORDER
+  - WebApp/Widget: seat selection, cart, payment flow
+  - Payment gateway: callbacks, order status updates
+- To continue, need:
+  - Real Telegram Bot token configured
+  - Bill24 API credentials (test environment)
+  - Running bot in actual Telegram
 
 ---
 
