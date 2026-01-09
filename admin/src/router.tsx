@@ -5,6 +5,7 @@ import { useAuthStore } from './store/auth'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Agents from './pages/Agents'
+import AgentDetails from './pages/AgentDetails'
 import Users from './pages/Users'
 import Orders from './pages/Orders'
 import Webhooks from './pages/Webhooks'
@@ -49,6 +50,10 @@ export const router = createBrowserRouter([
       {
         path: 'agents',
         element: <Agents />,
+      },
+      {
+        path: 'agents/:id',
+        element: <AgentDetails />,
       },
       {
         path: 'users',
