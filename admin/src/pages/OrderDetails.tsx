@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Ticket, User, Building, Calendar, MapPin, DollarSign, Loader2, AlertCircle, CheckCircle, XCircle, Clock } from 'lucide-react'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { ArrowLeft, Ticket, User, Building, Calendar, MapPin, DollarSign, Loader2, AlertCircle, CheckCircle, XCircle, Clock, Trash2, Ban } from 'lucide-react'
 import { useAuthStore } from '../store/auth'
+import toast from 'react-hot-toast'
 
 interface TicketData {
   id: number
@@ -40,10 +41,12 @@ interface OrderDetail {
 export default function OrderDetails() {
   console.log('[OrderDetails] Component mounted')
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   console.log('[OrderDetails] Order ID from params:', id)
   const [order, setOrder] = useState<OrderDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
   const authToken = useAuthStore((state) => state.token)
 
   useEffect(() => {
@@ -142,6 +145,74 @@ export default function OrderDetails() {
     }).format(amount)
   }
 
+  const handleCancelOrder = async () => {
+    if (!order || order.status === 'CANCELLED') return
+
+    const confirmed = window.confirm(
+      `Are you sure you want to cancel Order #${order.id}?\n\nThis will also mark all ${order.ticket_count} ticket(s) as cancelled.`
+    )
+    if (!confirmed) return
+
+    setActionLoading(true)
+    try {
+      const response = await fetch(`http://localhost:8000/api/admin/orders/${order.id}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        toast.success(data.message || 'Order cancelled successfully')
+        // Refresh order data
+        fetchOrder()
+      } else {
+        const errorData = await response.json()
+        toast.error(errorData.detail || 'Failed to cancel order')
+      }
+    } catch (err) {
+      console.error('Failed to cancel order:', err)
+      toast.error('Failed to cancel order. Check your connection.')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleDeleteOrder = async () => {
+    if (!order) return
+
+    const confirmed = window.confirm(
+      `Are you sure you want to DELETE Order #${order.id}?\n\nThis will permanently delete the order and all ${order.ticket_count} ticket(s). This action cannot be undone.`
+    )
+    if (!confirmed) return
+
+    setActionLoading(true)
+    try {
+      const response = await fetch(`http://localhost:8000/api/admin/orders/${order.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        toast.success(data.message || 'Order deleted successfully')
+        // Navigate back to orders list
+        navigate('/orders')
+      } else {
+        const errorData = await response.json()
+        toast.error(errorData.detail || 'Failed to delete order')
+      }
+    } catch (err) {
+      console.error('Failed to delete order:', err)
+      toast.error('Failed to delete order. Check your connection.')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -182,6 +253,34 @@ export default function OrderDetails() {
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">Order #{order.id}</h1>
           {getStatusBadge(order.status)}
+        </div>
+        <div className="flex items-center space-x-2">
+          {order.status !== 'CANCELLED' && (
+            <button
+              onClick={handleCancelOrder}
+              disabled={actionLoading}
+              className="btn btn-secondary text-amber-600 hover:text-amber-700 hover:bg-amber-50 border-amber-300"
+            >
+              {actionLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Ban className="h-4 w-4 mr-2" />
+              )}
+              Cancel Order
+            </button>
+          )}
+          <button
+            onClick={handleDeleteOrder}
+            disabled={actionLoading}
+            className="btn btn-secondary text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
+          >
+            {actionLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Trash2 className="h-4 w-4 mr-2" />
+            )}
+            Delete
+          </button>
         </div>
       </div>
 

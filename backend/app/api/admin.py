@@ -761,6 +761,84 @@ async def get_order(
     )
 
 
+@admin_router.post("/orders/{order_id}/cancel")
+async def cancel_order(
+    order_id: int,
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Cancel an order and mark all its tickets as cancelled. Requires authentication."""
+    from sqlalchemy.orm import joinedload
+
+    # Get the order with its tickets
+    result = await db.execute(
+        select(OrderModel)
+        .options(joinedload(OrderModel.tickets))
+        .where(OrderModel.id == order_id)
+    )
+    order = result.unique().scalar_one_or_none()
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if order.status == "CANCELLED":
+        raise HTTPException(status_code=400, detail="Order is already cancelled")
+
+    # Update order status to CANCELLED
+    order.status = "CANCELLED"
+
+    # Update all associated tickets to CANCELLED
+    tickets_cancelled = 0
+    for ticket in order.tickets:
+        if ticket.status != "CANCELLED":
+            ticket.status = "CANCELLED"
+            tickets_cancelled += 1
+
+    await db.commit()
+
+    return {
+        "message": f"Order #{order_id} has been cancelled",
+        "order_id": order_id,
+        "tickets_cancelled": tickets_cancelled,
+    }
+
+
+@admin_router.delete("/orders/{order_id}")
+async def delete_order(
+    order_id: int,
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete an order and all its tickets. Requires authentication."""
+    from sqlalchemy.orm import joinedload
+
+    # Get the order with its tickets
+    result = await db.execute(
+        select(OrderModel)
+        .options(joinedload(OrderModel.tickets))
+        .where(OrderModel.id == order_id)
+    )
+    order = result.unique().scalar_one_or_none()
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # Delete all tickets first
+    tickets_deleted = len(order.tickets)
+    for ticket in order.tickets:
+        await db.delete(ticket)
+
+    # Delete the order
+    await db.delete(order)
+    await db.commit()
+
+    return {
+        "message": f"Order #{order_id} and {tickets_deleted} ticket(s) have been deleted",
+        "order_id": order_id,
+        "tickets_deleted": tickets_deleted,
+    }
+
+
 @admin_router.get("/orders/{order_id}/tickets", response_model=List[TicketResponse])
 async def get_order_tickets(
     order_id: int,
