@@ -14,6 +14,7 @@ try:
     from app.api import admin_router, webhook_router, widget_router
     from app.core.config import settings
     from app.core.database import init_db
+    from app.core.redis_client import get_redis_client, close_redis_client, ping_redis
     # Import models to register them with Base.metadata
     from app import models  # noqa: F401
 except ModuleNotFoundError:
@@ -21,6 +22,7 @@ except ModuleNotFoundError:
     from backend.app.api import admin_router, webhook_router, widget_router
     from backend.app.core.config import settings
     from backend.app.core.database import init_db
+    from backend.app.core.redis_client import get_redis_client, close_redis_client, ping_redis
     # Import models to register them with Base.metadata
     from backend.app import models  # noqa: F401
 
@@ -30,9 +32,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     """Application lifespan manager."""
     # Startup
     await init_db()
+    # Initialize Redis connection
+    await get_redis_client()
     yield
     # Shutdown
-    pass
+    await close_redis_client()
 
 
 def create_application() -> FastAPI:
@@ -70,8 +74,10 @@ app = create_application()
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint for Dokploy and monitoring."""
+    redis_connected = await ping_redis()
     return {
         "status": "ok",
         "version": "0.1.0",
         "environment": settings.ENV,
+        "redis": "connected" if redis_connected else "disconnected",
     }

@@ -1119,3 +1119,64 @@ async def get_sales_chart(
         print(f"Error fetching sales chart data: {e}")
 
     return {"labels": labels, "data": data}
+
+
+# =============================================================================
+# Background Jobs Endpoints
+# =============================================================================
+
+
+class JobEnqueueRequest(BaseModel):
+    message: str = "Test job"
+
+
+class JobStatusResponse(BaseModel):
+    job_id: str
+    status: Optional[str]
+    result: Optional[dict] = None
+
+
+@admin_router.post("/jobs/test", response_model=JobStatusResponse)
+async def enqueue_test_job_endpoint(
+    request: JobEnqueueRequest,
+    current_user: AdminUser = Depends(get_current_admin_user),
+):
+    """Enqueue a test background job. Requires authentication."""
+    try:
+        from app.core.background_jobs import enqueue_test_job
+    except ModuleNotFoundError:
+        from backend.app.core.background_jobs import enqueue_test_job
+
+    job = await enqueue_test_job(request.message)
+
+    if not job:
+        raise HTTPException(status_code=500, detail="Failed to enqueue job")
+
+    return JobStatusResponse(
+        job_id=job.job_id,
+        status="queued",
+    )
+
+
+@admin_router.get("/jobs/{job_id}", response_model=JobStatusResponse)
+async def get_job_status_endpoint(
+    job_id: str,
+    current_user: AdminUser = Depends(get_current_admin_user),
+):
+    """Get background job status. Requires authentication."""
+    try:
+        from app.core.background_jobs import get_job_status, get_job_result
+    except ModuleNotFoundError:
+        from backend.app.core.background_jobs import get_job_status, get_job_result
+
+    status = await get_job_status(job_id)
+    result = None
+
+    if status == "complete":
+        result = await get_job_result(job_id)
+
+    return JobStatusResponse(
+        job_id=job_id,
+        status=status,
+        result=result,
+    )
