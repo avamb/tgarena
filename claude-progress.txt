@@ -1,5 +1,79 @@
 # TG-Ticket-Agent Development Progress
 
+## Session 15 - Feature Queue Analysis
+## Date: January 9, 2026
+
+### Session Summary
+
+This session performed regression testing and feature queue analysis. Confirmed that all remaining 64 features require external integrations that are not currently configured.
+
+### Regression Tests Performed
+
+All regression tests passed:
+- ✅ Feature #93: Required fields block submission - form validation works correctly
+- ✅ Feature #74: Unsaved changes warning - dialog appears when canceling with changes
+
+### Feature Queue Analysis
+
+Cycled through all 64 remaining features. Every single one requires external integrations:
+
+**Telegram Bot Features (~35 features)**
+- #27-41: /start command, deep links, event carousel, localization
+- Requires: Real TELEGRAM_BOT_TOKEN (current one is placeholder)
+
+**Bill24 API Features (~20 features)**
+- #42-47, #67-68: CREATE_USER, GET_ALL_ACTIONS, RESERVATION, etc.
+- Requires: Bill24 FID and Token from TixGear platform
+
+**WebApp/Widget Features (~10 features)**
+- #33-36, #133-134: Seat selection, cart, Telegram initData validation
+- Requires: Running bot with WebApp configured
+
+**Integration Features (~8 features)**
+- #149-151: n8n webhook, payment callbacks, zone switching
+- Requires: External services and payment gateway
+
+### Feature Statistics
+
+```
+Total Features: 201
+Passing: 137
+In Progress: 0
+Percentage Complete: 68.2%
+```
+
+### Technical Status
+
+- API: ✅ Running on port 8000
+- Admin Panel: ✅ Running on port 5173
+- PostgreSQL: ✅ Running and healthy
+- Redis: ✅ Running and connected
+- Telegram Bot: ⏳ Placeholder token (not functional)
+- Bill24 API: ⏳ No credentials configured
+
+### What's Needed to Continue
+
+To complete remaining 64 features:
+
+1. **Telegram Bot Token**
+   - Create bot via @BotFather
+   - Set `TELEGRAM_BOT_TOKEN` in .env
+   - Set `TELEGRAM_BOT_USERNAME`
+
+2. **Bill24/TixGear Credentials**
+   - Obtain test zone access
+   - Configure agent FID and Token
+
+3. **Deployment**
+   - Deploy bot to receive webhooks
+   - Configure WebApp URL
+
+### Git Status
+
+No code changes this session - only verification and analysis.
+
+---
+
 ## Session 14 - Redis Caching and Background Jobs
 ## Date: January 9, 2026
 
@@ -343,626 +417,3 @@ Percentage Complete: 63.7%
   - Real Telegram Bot token configured
   - Bill24 API credentials (test environment)
   - Running bot in actual Telegram
-
----
-
-## Session 10 - Order Details Route Fix
-## Date: January 2025
-
-### Session Summary
-
-This session fixed the missing OrderDetails route in router.tsx. The OrderDetails component was already implemented but the route was missing from the router configuration, causing 404 errors when clicking on orders.
-
-### Completed Features This Session
-
-#### Feature #20: View order details with tickets (PASSING)
-- Fixed missing /orders/:id route in router.tsx
-- OrderDetails component was already fully implemented with:
-  - Order summary cards (Total Amount, Tickets, Customer, Agent)
-  - Order information section (Order ID, Bill24 Order ID, Status, Dates)
-  - Tickets list with event details, seat info, barcode, and delivery status
-- Verified with Order #1 which has 2 tickets for "Test Concert Event"
-- Back navigation to Orders page works correctly
-
-### Feature Statistics
-
-```
-Total Features: 201
-Passing: 128
-In Progress: 0
-Percentage Complete: 63.7%
-```
-
-### Files Modified
-
-- `admin/src/router.tsx` - Added /orders/:id route with OrderDetails component
-
-### Git Commits
-
-1. "Add OrderDetails route to router.tsx - Feature #20"
-
-### Next Steps
-
-- All remaining 73 features require external integrations:
-  - Telegram Bot: /start command, deep links, event carousel, messages
-  - Bill24 API: CREATE_USER, GET_ALL_ACTIONS, RESERVATION, CREATE_ORDER
-  - WebApp/Widget: seat selection, cart, payment flow
-  - Payment gateway: callbacks, order status updates
-- To continue, need:
-  - Real Telegram Bot token configured
-  - Bill24 API credentials (test environment)
-  - Running bot in actual Telegram
-
-### Regression Tests Verified
-
-- Feature #12: View agent statistics - Working
-- Feature #136: Bill24 credentials never exposed - Working
-- Feature #87: Clear filters button resets all - Working
-
----
-
-## Session 9 - Pagination Implementation
-## Date: January 2025
-
-### Session Summary
-
-This session implemented real pagination with exact page count for the Agents page. The backend now returns total count and total pages, enabling accurate pagination in the frontend.
-
-### Completed Features This Session
-
-#### Feature #186: Pagination with exact page count (PASSING)
-- Added PaginatedAgentsResponse schema with total, page, page_size, total_pages
-- Added PaginatedUsersResponse schema for Users API endpoint
-- Updated Agents page with search filter, pagination UI and navigation
-- API calculates accurate total count for proper page calculation
-- Verified with 25 agents showing exactly 3 pages
-- Page 3 correctly shows 5 records (remaining records)
-- URL updates with page parameter (?page=3)
-- Previous/Next buttons properly disabled at boundaries
-
-### Feature Statistics
-
-```
-Total Features: 201
-Passing: 127
-In Progress: 0
-Percentage Complete: 63.2%
-```
-
-### Files Modified
-
-- `backend/app/api/admin.py` - Added paginated response schemas for agents and users
-- `admin/src/pages/Agents.tsx` - Added search, pagination UI, page navigation
-
-### Git Commits
-
-1. "Implement pagination with exact page count for Agents" - Feature #186
-
-### Next Steps
-
-- Most remaining features require external integrations (Telegram, Bill24)
-- Consider updating Users page pagination UI similarly
-- All 74 remaining features require external integrations:
-  - Telegram Bot: /start command, deep links, event carousel, messages
-  - Bill24 API: CREATE_USER, GET_ALL_ACTIONS, RESERVATION, CREATE_ORDER
-  - WebApp/Widget: seat selection, cart, payment flow
-  - Payment gateway: callbacks, order status updates
-- To continue, need:
-  - Real Telegram Bot token configured
-  - Bill24 API credentials (test environment)
-  - Running bot in actual Telegram
-
----
-
-## Session 8 - Webhook Retry Implementation
-## Date: January 2025
-
-### Session Summary
-
-This session implemented webhook retry logic with exponential backoff, completing Feature #128. Verified the webhook system handles failures gracefully with up to 3 retry attempts.
-
-### Completed Features This Session
-
-#### Feature #128: Webhook retry on failure (PASSING)
-- Implemented WebhookService class with retry logic
-- MAX_RETRIES = 3 with exponential backoff delays: [1s, 5s, 15s]
-- Created `backend/app/core/webhook_service.py` with full webhook management
-- Updated `backend/app/api/webhooks.py` with real database operations
-- Fixed authentication in `admin/src/pages/Webhooks.tsx` (was using wrong localStorage key)
-- Test result UI shows individual retry attempts with status
-- Failed webhooks logged to database with response details
-- Verified: Test webhook to failing endpoint shows 3 attempts before final failure
-
-### Feature Statistics
-
-```
-Total Features: 201
-Passing: 126
-In Progress: 0
-Percentage Complete: 62.7%
-```
-
-### Key Observations
-
-- Reached a plateau where most remaining features (75) require external integrations:
-  - Telegram Bot access (deep links, event carousel, messages, localization)
-  - WebApp/Widget functionality (seat selection, payment flow, cart management)
-  - Bill24 API integration (CREATE_USER, GET_ALL_ACTIONS, payments)
-  - Payment gateway callbacks
-- Features that could still be implemented without external access:
-  - Redis caching (#181) - requires implementation effort
-  - Background job processing (#182) - requires arq setup
-  - Pagination with exact page count (#186) - requires API changes
-- Session performed extensive feature queue cycling, skipping ~40 bot-related features
-
-### Files Created/Modified
-
-**New Files:**
-- `backend/app/core/webhook_service.py` - WebhookService with retry logic
-
-**Modified Files:**
-- `backend/app/api/webhooks.py` - Real API implementation with auth
-- `admin/src/pages/Webhooks.tsx` - Fixed auth, added test result display
-
-### Git Commits
-
-1. "Implement webhook retry logic with exponential backoff" - Feature #128
-
-### Next Steps
-
-- Consider implementing Redis caching if performance becomes an issue
-- Real pagination implementation requires API changes and frontend updates
-- To continue with remaining features, need:
-  - Telegram Bot token and webhook configuration
-  - Bill24 API credentials (test environment)
-  - Access to run bot in Telegram
-
----
-
-## Session 7 - Feature Testing & Verification
-## Date: January 2025
-
-### Session Summary
-
-This session focused on testing error handling and database-related features. Successfully verified database disconnect handling and Alembic migrations.
-
-### Completed Features This Session
-
-#### Feature #148: Handle database connection lost (PASSING)
-- Tested by stopping PostgreSQL container
-- Admin panel shows graceful error: "Error Loading Agents"
-- User-friendly message: "Unable to connect to server. Please check your network connection."
-- "Try Again" button provided to retry
-- After PostgreSQL restart, clicking "Try Again" successfully loads data
-- No page crashes on database unavailability
-
-#### Feature #180: Database migrations apply cleanly (PASSING)
-- Alembic migrations properly configured
-- `alembic upgrade head` runs without errors
-- All 9 database tables exist (agents, users, user_sessions, orders, tickets, admin_users, webhook_logs, system_settings, alembic_version)
-- Migration script has proper `downgrade()` function
-- Tables dropped in correct order respecting foreign keys
-
-### Feature Statistics
-
-```
-Total Features: 201
-Passing: 125
-In Progress: 0
-Percentage Complete: 62.2%
-```
-
-### Key Observations
-
-- Most remaining features (76) require Telegram bot access or external integrations
-- Bot/WebApp features: Telegram deep links, event carousel, seat selection, payment flow
-- Integration features: Bill24 API, n8n webhooks, payment callbacks
-- Some features need implementation: Redis caching, arq background jobs, pagination with totals
-
-### Next Steps
-
-- Implement remaining admin features that don't require Telegram access
-- Consider implementing Redis caching for better performance
-- Implement real pagination with total counts from backend
-- Continue skipping bot/Telegram features until external access available
-
----
-
-## Session 6 - Feature Implementation
-## Date: January 2025
-
-### Session Summary
-
-This session implemented several key admin panel features including the dashboard sales chart, breadcrumb navigation, and improved network error handling.
-
-### Completed Features This Session
-
-#### Feature #23: Dashboard shows sales chart (PASSING)
-- Implemented real sales chart using recharts LineChart
-- Added Week/Month/Year period filters
-- Chart shows Orders (blue line) and Revenue (green line)
-- API endpoint returns aggregated order data from database
-- Dual Y-axes for different scales (Orders vs Revenue)
-- Legend and tooltips working
-
-#### Feature #49: Admin breadcrumb navigation (PASSING)
-- Added Breadcrumbs component to Layout
-- Shows navigation path: Dashboard > Section > Detail
-- Home icon links to Dashboard
-- Clickable links for intermediate levels
-- Fetches entity names for detail pages (e.g., agent names)
-- Added agent detail routes (/agents/:id, /users/:id)
-- Made agent names clickable links in table
-
-#### Feature #64: Network error handled gracefully (PASSING)
-- Added fetchError state to Agents page
-- Shows user-friendly error message when API unavailable
-- Warning icon and "Error Loading Agents" heading
-- Descriptive message about network connection
-- "Try Again" button to retry the request
-- Page does not crash on network failure
-
-### Feature Statistics
-
-```
-Total Features: 201
-Passing: 123
-In Progress: 0
-Percentage Complete: 61.2%
-```
-
-### Git Commits This Session
-
-1. "Implement dashboard sales chart, breadcrumb navigation, and network error handling" - Features #23, #49, #64
-
-### Files Modified This Session
-
-- `admin/src/App.tsx` - Added routes for AgentDetails and UserDetails
-- `admin/src/components/Layout.tsx` - Added Breadcrumbs component
-- `admin/src/pages/Agents.tsx` - Added network error handling, clickable agent names
-- `admin/src/pages/Dashboard.tsx` - Already had chart code (recharts)
-- `backend/app/api/admin.py` - Updated sales-chart endpoint with real data
-
-### Next Steps
-
-- Continue testing admin panel features
-- Most remaining features are bot/Telegram-related (require external access)
-- Consider testing more error handling and edge cases
-
----
-
-## Session 5 - Feature Testing (Continued)
-## Date: January 2025
-
-### Session Summary
-
-This session continued testing features for the TG-Ticket-Agent application. Focus on admin panel functionality including version display, user search/filter, orders UI, and dashboard statistics.
-
-### Completed Features This Session
-
-#### Feature #196: Admin panel shows correct version (PASSING)
-- Settings page "About" section displays version 0.1.0
-- Environment shows "Development"
-
-#### Feature #200: Admin header shows current page title (PASSING)
-- Banner heading updates based on current page
-- Agents page shows "agents", Users shows "users", etc.
-
-#### Feature #201: Docker compose services start correctly (PASSING)
-- API, PostgreSQL, Redis containers running
-- Health check at /api/health returns OK
-
-#### Feature #14: Search users by username (PASSING)
-- Search box with debounce (300ms)
-- Typing "john" filters to matching users
-- Clearing search restores all users
-
-#### Feature #15: Filter users by agent (PASSING)
-- Agent dropdown filter works
-- Selecting agent shows only users for that agent
-- "All Agents" option shows all users
-
-#### Feature #17: View all orders list (PASSING)
-- Orders table displays with correct columns
-- Columns: Order ID, User, Agent, Status, Tickets, Total, Date
-- Empty state shows "No orders yet"
-
-#### Feature #18: Filter orders by status (PASSING)
-- Status dropdown with options: All, New, Processing, Paid, Cancelled
-- Filter selection works correctly
-
-#### Feature #19: Filter orders by date range (PASSING)
-- From/To date inputs accept date values
-- Date range filter UI functional
-
-#### Feature #21: Dashboard shows key statistics (PASSING)
-- Total Users, Total Orders, Revenue, Active Agents cards
-- Values display correctly (0 when no data)
-
-#### Feature #22: Dashboard shows recent orders (PASSING)
-- Recent Orders section displays
-- Shows "No orders yet." when empty
-
-#### Password Validation (Settings Page - Working)
-- Validates minimum 8 characters
-- Validates uppercase letter required
-- Validates lowercase letter required
-- Validates number required
-- Shows inline error message and toast
-- Clears form on successful update
-
-### Feature Statistics
-
-```
-Total Features: 201
-Passing: 88
-In Progress: 0
-Percentage Complete: 43.8%
-```
-
-### Features Skipped This Session
-- #189: Expired session handled gracefully (shows toast but doesn't redirect)
-- #190-195: Bot/WebApp/Telegram integration features
-- #197-199: Order data and payment features
-- #16: View user details (not implemented)
-- #20: View order details with tickets (no orders)
-- #23: Dashboard sales chart (placeholder only)
-- #27-32: Bot features
-
----
-
-## Session 4 - Feature Testing (Continued)
-## Date: January 2025
-
-### Session Summary
-
-This session continued testing features for the TG-Ticket-Agent application. Focus on validation, security, responsiveness, and accessibility features.
-
-### Completed Features This Session
-
-#### Feature #152: Agent zone only test or real (PASSING)
-- Frontend dropdown only allows "test" or "real" values
-- No way to enter invalid zone through UI
-- Creating agent with zone='test' works correctly
-
-#### Feature #153: Unique constraints enforced (PASSING)
-- Duplicate FID rejected with error "Agent with FID X already exists"
-- API returns 400 Bad Request for duplicates
-- UI shows error toast
-
-#### Feature #159: Sort defaults to newest first (PASSING)
-- Users sorted by created_at descending
-- API returns newest users first
-
-#### Feature #164: Admin sidebar toggle on tablet (PASSING)
-- Sidebar collapsed by default on mobile (<1024px)
-- Hamburger menu visible to toggle
-- Sidebar slides in with overlay
-- X button closes sidebar
-
-#### Feature #167: Images have alt text (PASSING)
-- SVG icons used as decorative elements
-- Icons paired with text labels (proper accessibility pattern)
-
-#### Feature #179: Healthcheck endpoint works (PASSING)
-- GET /api/health returns 200 OK
-- Response includes status="ok", version, environment
-
-#### Feature #185: Empty state displays correctly (PASSING)
-- Orders page shows "No orders yet" message
-- Agents page has empty state with "Add Your First Agent" button
-
-#### Feature #188: Modal close returns to previous state (PASSING)
-- Edit modal opens with pre-filled data
-- Cancel/close preserves table state
-
-### Feature Statistics
-
-```
-Total Features: 201
-Passing: 78
-In Progress: 0
-Percentage Complete: 38.8%
-```
-
-### Features Skipped (Not Implemented Yet)
-- Export orders/users as CSV
-- Rate limiting on login endpoint
-- Pagination controls
-- Skip to main content link
-- Data tables horizontal scroll on mobile
-- Redirect to intended page after login
-- Various bot/widget features
-
----
-
-## Session 3 - Feature Implementation (Continued)
-## Date: January 2025
-
-### Session Summary
-
-This session continued implementing and testing features for the TG-Ticket-Agent application. Major focus on Agent CRUD operations with real database integration.
-
-### Completed Features This Session
-
-#### Feature #7: Create New Agent via Admin Panel (PASSING)
-- Full agent creation workflow with database persistence
-- Form validation for name, FID, token, zone, active status
-- Success/error toast notifications
-- Agent appears in list after creation
-
-#### Feature #8: Edit Existing Agent (PASSING)
-- Edit modal pre-fills current agent data
-- Update persists to database
-- Changes visible after page refresh
-
-#### Feature #9: Delete Agent (PASSING)
-- Confirmation dialog before deletion
-- Agent removed from database
-- Deletion persists after refresh
-
-#### Feature #10: View Agent Deep Link (PASSING)
-- Deep link shown in table uses agent.id (not fid)
-- Copy to clipboard functionality works
-
-#### Feature #11: Toggle Agent Active Status (PASSING)
-- Edit agent and toggle checkbox
-- Status change persists to database
-
-#### Feature #12: View Agent Statistics (PASSING)
-- New stats modal with users/orders/revenue
-- Fetches from /api/admin/agents/{id}/stats endpoint
-
-#### Feature #13: View All Users List (PASSING)
-- Users page displays table structure
-- Columns: Chat ID, Username, Name, Agent, Language, Created
-
-#### Feature #24: Configure Webhook URL (PASSING)
-- Webhook configuration form works
-- Save Configuration shows success toast
-
-#### Feature #25: Test Webhook Endpoint (PASSING)
-- Test Webhook button works
-- Shows success toast
-
-#### Feature #26: View Webhook Logs (PASSING)
-- Logs tab shows table structure
-- Columns: Event, Status, Response, Sent At
-
-### Feature Statistics
-
-```
-Total Features: 201
-Passing: 16
-In Progress: 0
-Percentage Complete: 8.0%
-```
-
-### Files Modified This Session
-
-- `admin/src/pages/Agents.tsx` - Full CRUD with stats modal, API integration
-- `admin/src/pages/Login.tsx` - Real API authentication (not mock)
-- `backend/app/api/admin.py` - Database CRUD for agents
-- `backend/app/main.py` - Import models for table creation
-- `backend/app/models/__init__.py` - Docker import compatibility
-
-### Git Commits This Session
-
-1. "Implement Agent CRUD with real database operations" - Features #7-12
-
-### Key Implementation Details
-
-1. **Real Database Operations**: Agents are now stored in PostgreSQL
-2. **JWT Authentication**: Login uses real API, not mock credentials
-3. **Agent Stats**: New modal shows users/orders/revenue per agent
-4. **Deep Links**: Correctly use agent.id (internal ID), not fid
-
----
-
-## Session 2 - Feature Implementation
-## Date: January 2025
-
-### Session Summary
-
-This session focused on implementing and testing initial features for the TG-Ticket-Agent application.
-
-### Completed Features
-
-#### Feature #1: Agent Identification (PASSING)
-- **Description**: Agents are identified by internal `agent.id`, NOT `fid` or `token`
-- **Changes Made**:
-  - Updated bot handlers to use `agent_id` in deep links
-  - Updated admin panel to generate deep links with `agent.id`
-  - Added ID column to agents table in admin panel
-  - Updated API documentation to clarify agent identification
-- **Deep link format**: `?start=agent_{agent_id}`
-
-#### Feature #2: Admin Login with Valid Credentials (PASSING)
-- **Description**: Admin can login with valid username/password
-- **Tested Steps**:
-  - Navigate to login page
-  - Enter admin/admin credentials (mock auth for frontend)
-  - Verify redirect to dashboard
-  - Verify JWT token stored in localStorage
-  - Verify user info displayed in sidebar
-
-#### Feature #3: Admin Login with Invalid Credentials Rejected (PASSING)
-- **Description**: Invalid credentials show error, no redirect
-- **Tested Steps**:
-  - Enter wrong credentials
-  - Verify "Invalid credentials" error toast
-  - Verify still on login page
-  - Verify no token stored
-
-#### Feature #4: Unauthenticated User Cannot Access Admin Routes (PASSING)
-- **Description**: Protected routes redirect to login
-- **Tested Steps**:
-  - Clear localStorage
-  - Navigate to /dashboard, /agents, /users
-  - All redirected to /login
-
-#### Feature #5: API Endpoints Return 401 (PASSING)
-- **Description**: API endpoints reject unauthenticated requests
-- **Implementation**:
-  - Created `backend/app/core/security.py` with JWT authentication
-  - Added `get_current_admin_user` dependency
-  - Updated all admin API endpoints with auth requirement
-  - Implemented real login endpoint with JWT token generation
-- **Tested**:
-  - GET /api/admin/agents without token → 401
-  - GET /api/admin/users without token → 401
-  - GET /api/admin/orders without token → 401
-  - Authenticated request with valid token → returns data
-
-### Feature Statistics
-
-```
-Total Features: 201
-Passing: 5
-In Progress: 0
-Percentage Complete: 2.5%
-```
-
-### Files Created/Modified This Session
-
-**New Files**:
-- `backend/app/core/security.py` - JWT authentication utilities
-
-**Modified Files**:
-- `bot/handlers/__init__.py` - Use agent_id instead of fid
-- `admin/src/pages/Agents.tsx` - Deep link with agent.id, added ID column
-- `backend/app/api/admin.py` - Added JWT auth to all protected routes, real login
-- `backend/app/core/__init__.py` - Export security functions
-- `backend/app/main.py` - Fixed imports for Docker compatibility
-- `README.md` - Clarified deep link format
-
-### Git Commits This Session
-
-1. "Implement agent identification by internal agent.id" - Feature #1
-2. "Implement JWT authentication for admin API" - Features #2-4
-3. "Fix Python imports for Docker compatibility" - Feature #5
-
-### Running Services
-
-- **Admin Panel**: http://localhost:5173 (npm dev server)
-- **Backend API**: http://localhost:8000 (Docker)
-- **PostgreSQL**: localhost:5432 (Docker)
-- **Redis**: localhost:6379 (Docker)
-
-### Next Steps
-
-1. Continue with more security features
-2. Implement Agent CRUD operations
-3. Connect admin panel to real API (currently using mock data)
-
----
-
-## Previous Session (Session 1 - Initializer Agent)
-
-### Summary
-- Created 201 features in features.db
-- Set up project structure
-- Created Docker and deployment configuration
-- Initial commit made
-
-(See git history for full details)
