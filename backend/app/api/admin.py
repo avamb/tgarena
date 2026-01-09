@@ -10,7 +10,7 @@ from typing import List, Optional
 
 from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, or_, func, String
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import admin_router
@@ -25,7 +25,7 @@ try:
         AdminUser,
         get_db,
     )
-    from app.models import Agent as AgentModel
+    from app.models import Agent as AgentModel, User as UserModel
 except ModuleNotFoundError:
     from backend.app.core import (
         settings,
@@ -36,7 +36,7 @@ except ModuleNotFoundError:
         AdminUser,
         get_db,
     )
-    from backend.app.models import Agent as AgentModel
+    from backend.app.models import Agent as AgentModel, User as UserModel
 
 
 # =============================================================================
@@ -335,9 +335,43 @@ async def list_users(
     page: int = 1,
     page_size: int = 20,
     current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    """Get all users with optional filters. Requires authentication."""
-    return []
+    """Get all users with optional filters. Requires authentication.
+
+    Filters:
+    - agent_id: Filter by current agent
+    - search: Search in username, first name, last name, or chat_id
+    """
+    query = select(UserModel)
+
+    # Apply agent filter
+    if agent_id:
+        query = query.where(UserModel.current_agent_id == agent_id)
+
+    # Apply search filter
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.where(
+            or_(
+                UserModel.telegram_username.ilike(search_pattern),
+                UserModel.telegram_first_name.ilike(search_pattern),
+                UserModel.telegram_last_name.ilike(search_pattern),
+                func.cast(UserModel.telegram_chat_id, String).ilike(search_pattern),
+            )
+        )
+
+    # Order by created_at descending (newest first)
+    query = query.order_by(UserModel.created_at.desc())
+
+    # Apply pagination
+    offset = (page - 1) * page_size
+    query = query.offset(offset).limit(page_size)
+
+    result = await db.execute(query)
+    users = result.scalars().all()
+
+    return users
 
 
 @admin_router.get("/users/{user_id}", response_model=UserResponse)

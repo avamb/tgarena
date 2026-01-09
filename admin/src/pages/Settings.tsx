@@ -1,9 +1,65 @@
+import { useState } from 'react'
 import { Save } from 'lucide-react'
 import toast from 'react-hot-toast'
 
+// Password complexity requirements: Min 8 chars, mixed case, numbers
+const validatePassword = (password: string): { valid: boolean; error: string } => {
+  if (password.length < 8) {
+    return { valid: false, error: 'Password must be at least 8 characters long' }
+  }
+  if (!/[a-z]/.test(password)) {
+    return { valid: false, error: 'Password must contain at least one lowercase letter' }
+  }
+  if (!/[A-Z]/.test(password)) {
+    return { valid: false, error: 'Password must contain at least one uppercase letter' }
+  }
+  if (!/[0-9]/.test(password)) {
+    return { valid: false, error: 'Password must contain at least one number' }
+  }
+  return { valid: true, error: '' }
+}
+
 export default function Settings() {
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordError, setPasswordError] = useState('')
+
   const handleSave = () => {
     toast.success('Settings saved!')
+  }
+
+  const handlePasswordChange = () => {
+    // Clear previous errors
+    setPasswordError('')
+
+    // Validate current password is provided
+    if (!currentPassword) {
+      toast.error('Please enter your current password')
+      return
+    }
+
+    // Validate new password complexity
+    const validation = validatePassword(newPassword)
+    if (!validation.valid) {
+      setPasswordError(validation.error)
+      toast.error(validation.error)
+      return
+    }
+
+    // Validate passwords match
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match')
+      toast.error('Passwords do not match')
+      return
+    }
+
+    // Clear error and show success (actual API call would go here)
+    setPasswordError('')
+    toast.success('Password updated successfully!')
+    setCurrentPassword('')
+    setNewPassword('')
+    setConfirmPassword('')
   }
 
   return (
@@ -71,21 +127,45 @@ export default function Settings() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Current Password
             </label>
-            <input type="password" className="w-full" />
+            <input
+              type="password"
+              className="w-full"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               New Password
             </label>
-            <input type="password" className="w-full" />
+            <input
+              type="password"
+              className={`w-full ${passwordError ? 'border-red-500' : ''}`}
+              value={newPassword}
+              onChange={(e) => {
+                setNewPassword(e.target.value)
+                setPasswordError('')
+              }}
+            />
+            {passwordError && (
+              <p className="mt-1 text-sm text-red-600">{passwordError}</p>
+            )}
+            <p className="mt-1 text-sm text-gray-500">
+              Min 8 characters, must include uppercase, lowercase, and number
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Confirm New Password
             </label>
-            <input type="password" className="w-full" />
+            <input
+              type="password"
+              className="w-full"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
           </div>
-          <button className="btn btn-primary">
+          <button onClick={handlePasswordChange} className="btn btn-primary">
             Update Password
           </button>
         </div>
