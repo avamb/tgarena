@@ -1,0 +1,105 @@
+================================================================================================
+IMPLEMENTABLE FEATURES - QUICK REFERENCE
+================================================================================================
+
+Total Non-Passing Features: 73
+Features Without External Integrations: 23
+
+================================================================================================
+HIGH-CONFIDENCE IMPLEMENTABLE (14 features)
+================================================================================================
+
+REDIS CACHING (1):
+------------------
+181 - Redis connection for caching
+
+BACKGROUND JOBS (1):
+--------------------
+182 - Background job processing
+
+DATA MODEL / PERSISTENCE (7):
+------------------------------
+58  - Dashboard statistics reflect real data
+59  - Order data persists correctly
+60  - Ticket data stored with QR code
+140 - User data persists across sessions
+141 - Order history accessible
+142 - Ticket retrieval by barcode
+193 - User last_active_at timestamp updated
+
+ADMIN PANEL / BACKEND (5):
+---------------------------
+63  - API error shows user-friendly message
+68  - Seat already reserved error
+85  - Delete order removes tickets
+156 - Inactive agent hides events
+199 - Handle oversold event gracefully
+
+================================================================================================
+NEEDS REVIEW (9 features)
+================================================================================================
+These may or may not require external integrations - review implementation details:
+
+38  - Ticket delivery with QR code
+40  - Russian language messages
+41  - English language fallback
+149 - n8n webhook receives data
+168 - Event countdown timer
+169 - Multiple users reserve different seats
+175 - Cancel reservation releases seats
+176 - Ticket PDF generation
+177 - Event poster in ticket message
+
+================================================================================================
+RECOMMENDED IMPLEMENTATION ORDER
+================================================================================================
+
+PHASE 1 - FOUNDATION:
+---------------------
+181 - Redis connection for caching
+182 - Background job processing
+63  - API error shows user-friendly message
+
+PHASE 2 - DATA INTEGRITY:
+--------------------------
+85  - Delete order removes tickets
+68  - Seat already reserved error
+199 - Handle oversold event gracefully
+156 - Inactive agent hides events
+
+PHASE 3 - DATA ACCESS:
+----------------------
+58  - Dashboard statistics reflect real data
+59  - Order data persists correctly
+60  - Ticket data stored with QR code
+140 - User data persists across sessions
+141 - Order history accessible
+142 - Ticket retrieval by barcode
+193 - User last_active_at timestamp updated
+
+PHASE 4 - ADDITIONAL:
+---------------------
+169 - Concurrent reservations
+175 - Cancel reservation releases seats
+176 - PDF generation
+40  - Russian language messages
+41  - English language fallback
+168 - Event countdown timer
+
+================================================================================================
+TO USE THESE FEATURES WITH MCP API:
+================================================================================================
+
+# Get next feature to work on:
+mcp__features__feature_get_next()
+
+# Mark feature as in-progress (e.g., feature 181):
+mcp__features__feature_mark_in_progress(feature_id=181)
+
+# Mark feature as passing when complete:
+mcp__features__feature_mark_passing(feature_id=181)
+
+# Skip a feature if blocked:
+mcp__features__feature_skip(feature_id=181)
+
+================================================================================================

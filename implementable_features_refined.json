@@ -1,0 +1,255 @@
+{
+  "summary": {
+    "total_non_passing": 73,
+    "total_implementable": 23,
+    "by_category": {
+      "redis": 1,
+      "background_jobs": 1,
+      "data_model": 7,
+      "admin_backend": 5,
+      "other": 9
+    }
+  },
+  "features": {
+    "adminBackend": [
+      {
+        "id": 63,
+        "priority": 888,
+        "category": "error",
+        "name": "API error shows user-friendly message",
+        "description": "Test graceful error handling",
+        "steps": "[\"Step 1: Configure invalid Bill24 credentials\", \"Step 2: Try to fetch events in bot\", \"Step 3: Verify user-friendly error shown\", \"Step 4: Verify no stack trace exposed\"]",
+        "passes": 0,
+        "in_progress": 0
+      },
+      {
+        "id": 68,
+        "priority": 890,
+        "category": "error",
+        "name": "Seat already reserved error",
+        "description": "Test handling of seat reservation conflicts",
+        "steps": "[\"Step 1: User A reserves a seat\", \"Step 2: User B tries to reserve same seat\", \"Step 3: Verify error message for User B\", \"Step 4: Verify seat shown as unavailable\"]",
+        "passes": 0,
+        "in_progress": 0
+      },
+      {
+        "id": 85,
+        "priority": 892,
+        "category": "cascade",
+        "name": "Delete order removes tickets",
+        "description": "Test order deletion cascade",
+        "steps": "[\"Step 1: Create order with tickets\", \"Step 2: Note ticket count\", \"Step 3: Cancel/delete order\", \"Step 4: Verify tickets marked cancelled\"]",
+        "passes": 0,
+        "in_progress": 0
+      },
+      {
+        "id": 156,
+        "priority": 912,
+        "category": "cascade",
+        "name": "Inactive agent hides events",
+        "description": "Test agent active status effect",
+        "steps": "[\"Step 1: Create agent and view events\", \"Step 2: Set agent to inactive\", \"Step 3: Try to view events\", \"Step 4: Verify appropriate message\"]",
+        "passes": 0,
+        "in_progress": 0
+      },
+      {
+        "id": 199,
+        "priority": 935,
+        "category": "error",
+        "name": "Handle oversold event gracefully",
+        "description": "Test event capacity handling",
+        "steps": "[\"Step 1: Try to buy ticket for sold-out event\", \"Step 2: Verify clear sold-out message\", \"Step 3: Verify option to see other events\"]",
+        "passes": 0,
+        "in_progress": 0
+      }
+    ],
+    "redis": [
+      {
+        "id": 181,
+        "priority": 927,
+        "category": "functional",
+        "name": "Redis connection for caching",
+        "description": "Test Redis integration",
+        "steps": "[\"Step 1: Start application with Redis\", \"Step 2: Fetch events (should cache)\", \"Step 3: Verify data cached in Redis\", \"Step 4: Second fetch should be faster\"]",
+        "passes": 0,
+        "in_progress": 0
+      }
+    ],
+    "backgroundJobs": [
+      {
+        "id": 182,
+        "priority": 928,
+        "category": "functional",
+        "name": "Background job processing",
+        "description": "Test arq task queue",
+        "steps": "[\"Step 1: Trigger action that queues job\", \"Step 2: Verify job added to queue\", \"Step 3: Verify job processed\", \"Step 4: Verify result stored\"]",
+        "passes": 0,
+        "in_progress": 0
+      }
+    ],
+    "dataModel": [
+      {
+        "id": 58,
+        "priority": 884,
+        "category": "data",
+        "name": "Dashboard statistics reflect real data",
+        "description": "Test dashboard counts are accurate",
+        "steps": "[\"Step 1: Note current user count on dashboard\", \"Step 2: Create new user via bot\", \"Step 3: Refresh dashboard\", \"Step 4: Verify user count increased by 1\"]",
+        "passes": 0,
+        "in_progress": 0
+      },
+      {
+        "id": 59,
+        "priority": 885,
+        "category": "data",
+        "name": "Order data persists correctly",
+        "description": "Test order storage and retrieval",
+        "steps": "[\"Step 1: Complete purchase via bot\", \"Step 2: Note order ID\", \"Step 3: Navigate to Orders in admin\", \"Step 4: Find order by ID\", \"Step 5: Verify all details match\", \"Step 6: Refresh and verify still present\"]",
+        "passes": 0,
+        "in_progress": 0
+      },
+      {
+        "id": 60,
+        "priority": 886,
+        "category": "data",
+        "name": "Ticket data stored with QR code",
+        "description": "Test ticket data persistence",
+        "steps": "[\"Step 1: Complete purchase\", \"Step 2: Navigate to order details in admin\", \"Step 3: Verify tickets list shown\", \"Step 4: Verify QR code data stored\", \"Step 5: Verify barcode data stored\"]",
+        "passes": 0,
+        "in_progress": 0
+      },
+      {
+        "id": 140,
+        "priority": 899,
+        "category": "data",
+        "name": "User data persists across sessions",
+        "description": "Test user persistence",
+        "steps": "[\"Step 1: Register new Telegram user\", \"Step 2: Note user ID\", \"Step 3: Restart bot\", \"Step 4: Interact as same user\", \"Step 5: Verify data preserved\"]",
+        "passes": 0,
+        "in_progress": 0
+      },
+      {
+        "id": 141,
+        "priority": 900,
+        "category": "data",
+        "name": "Order history accessible",
+        "description": "Test order history retrieval",
+        "steps": "[\"Step 1: Complete multiple purchases\", \"Step 2: Request order history in bot\", \"Step 3: Verify all orders listed\", \"Step 4: Verify order details accessible\"]",
+        "passes": 0,
+        "in_progress": 0
+      },
+      {
+        "id": 142,
+        "priority": 901,
+        "category": "data",
+        "name": "Ticket retrieval by barcode",
+        "description": "Test ticket lookup",
+        "steps": "[\"Step 1: Complete purchase with ticket\", \"Step 2: Note barcode number\", \"Step 3: Look up ticket by barcode\", \"Step 4: Verify correct ticket returned\"]",
+        "passes": 0,
+        "in_progress": 0
+      },
+      {
+        "id": 193,
+        "priority": 932,
+        "category": "data",
+        "name": "User last_active_at timestamp updated",
+        "description": "Test activity timestamp tracking",
+        "steps": "[\"Step 1: Note user last_active_at\", \"Step 2: User interacts with bot\", \"Step 3: Verify last_active_at updated\", \"Step 4: Check in admin panel\"]",
+        "passes": 0,
+        "in_progress": 0
+      }
+    ],
+    "otherPotential": [
+      {
+        "id": 38,
+        "priority": 874,
+        "category": "functional",
+        "name": "Ticket delivery with QR code",
+        "description": "Test ticket message format and content",
+        "steps": "[\"Step 1: Complete a purchase\", \"Step 2: Verify ticket message received\", \"Step 3: Verify QR code image present\", \"Step 4: Verify barcode image present\", \"Step 5: Verify event name and date\", \"Step 6: Verify seat details\", \"Step 7: Verify price shown\"]",
+        "passes": 0,
+        "in_progress": 0
+      },
+      {
+        "id": 40,
+        "priority": 876,
+        "category": "functional",
+        "name": "Russian language messages",
+        "description": "Test Russian localization",
+        "steps": "[\"Step 1: Set Telegram to Russian\", \"Step 2: Start new bot conversation\", \"Step 3: Verify welcome message in Russian\", \"Step 4: Navigate through events\", \"Step 5: Verify all buttons in Russian\", \"Step 6: Verify error messages in Russian\"]",
+        "passes": 0,
+        "in_progress": 0
+      },
+      {
+        "id": 41,
+        "priority": 877,
+        "category": "functional",
+        "name": "English language fallback",
+        "description": "Test English localization for non-Russian users",
+        "steps": "[\"Step 1: Set Telegram to English\", \"Step 2: Start new bot conversation\", \"Step 3: Verify welcome message in English\", \"Step 4: Navigate through events\", \"Step 5: Verify all buttons in English\"]",
+        "passes": 0,
+        "in_progress": 0
+      },
+      {
+        "id": 149,
+        "priority": 907,
+        "category": "integration",
+        "name": "n8n webhook receives data",
+        "description": "Test n8n integration",
+        "steps": "[\"Step 1: Configure n8n webhook URL\", \"Step 2: Complete purchase\", \"Step 3: Verify n8n receives webhook\", \"Step 4: Verify payload contains user data\"]",
+        "passes": 0,
+        "in_progress": 0
+      },
+      {
+        "id": 168,
+        "priority": 918,
+        "category": "temporal",
+        "name": "Event countdown timer",
+        "description": "Test countdown to event start",
+        "steps": "[\"Step 1: View event starting soon\", \"Step 2: Verify countdown displayed\", \"Step 3: Verify updates in real-time\"]",
+        "passes": 0,
+        "in_progress": 0
+      },
+      {
+        "id": 169,
+        "priority": 919,
+        "category": "concurrency",
+        "name": "Multiple users reserve different seats",
+        "description": "Test parallel reservations",
+        "steps": "[\"Step 1: User A selects seat 1\", \"Step 2: User B selects seat 2 simultaneously\", \"Step 3: Verify both reservations succeed\", \"Step 4: Verify no conflicts\"]",
+        "passes": 0,
+        "in_progress": 0
+      },
+      {
+        "id": 175,
+        "priority": 923,
+        "category": "functional",
+        "name": "Cancel reservation releases seats",
+        "description": "Test reservation cancellation",
+        "steps": "[\"Step 1: Reserve seats\", \"Step 2: Cancel before timeout\", \"Step 3: Verify seats available again\", \"Step 4: Verify in seat list\"]",
+        "passes": 0,
+        "in_progress": 0
+      },
+      {
+        "id": 176,
+        "priority": 924,
+        "category": "functional",
+        "name": "Ticket PDF generation",
+        "description": "Test PDF ticket option",
+        "steps": "[\"Step 1: Complete purchase\", \"Step 2: Request PDF ticket\", \"Step 3: Verify PDF delivered\", \"Step 4: Verify PDF contains QR and details\"]",
+        "passes": 0,
+        "in_progress": 0
+      },
+      {
+        "id": 177,
+        "priority": 925,
+        "category": "functional",
+        "name": "Event poster in ticket message",
+        "description": "Test ticket includes poster",
+        "steps": "[\"Step 1: Complete purchase for event with poster\", \"Step 2: Receive ticket\", \"Step 3: Verify poster image included\", \"Step 4: Verify image displays correctly\"]",
+        "passes": 0,
+        "in_progress": 0
+      }
+    ]
+  }
+}

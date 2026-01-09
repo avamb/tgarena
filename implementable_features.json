@@ -1,0 +1,308 @@
+[
+  {
+    "id": 31,
+    "priority": 867,
+    "category": "functional",
+    "name": "Navigate events with Next button",
+    "description": "Test event carousel navigation",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 32,
+    "priority": 868,
+    "category": "functional",
+    "name": "View events as list",
+    "description": "Test event list view",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 33,
+    "priority": 869,
+    "category": "functional",
+    "name": "Buy Ticket button opens WebApp",
+    "description": "Test WebApp launch for seat selection",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 34,
+    "priority": 870,
+    "category": "functional",
+    "name": "WebApp shows seat selection",
+    "description": "Test seat selection in modified widget",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 35,
+    "priority": 871,
+    "category": "functional",
+    "name": "WebApp cart management",
+    "description": "Test adding/removing seats in widget",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 36,
+    "priority": 872,
+    "category": "functional",
+    "name": "WebApp reservation timeout displayed",
+    "description": "Test cart timeout countdown",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 37,
+    "priority": 873,
+    "category": "functional",
+    "name": "Complete purchase flow end-to-end",
+    "description": "Test full ticket purchase from start to finish",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 41,
+    "priority": 877,
+    "category": "functional",
+    "name": "English language fallback",
+    "description": "Test English localization for non-Russian users",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 58,
+    "priority": 884,
+    "category": "data",
+    "name": "Dashboard statistics reflect real data",
+    "description": "Test dashboard counts are accurate",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 59,
+    "priority": 885,
+    "category": "data",
+    "name": "Order data persists correctly",
+    "description": "Test order storage and retrieval",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 60,
+    "priority": 886,
+    "category": "data",
+    "name": "Ticket data stored with QR code",
+    "description": "Test ticket data persistence",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 68,
+    "priority": 890,
+    "category": "error",
+    "name": "Seat already reserved error",
+    "description": "Test handling of seat reservation conflicts",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 69,
+    "priority": 891,
+    "category": "error",
+    "name": "Payment failure handling",
+    "description": "Test payment error scenario",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 85,
+    "priority": 892,
+    "category": "cascade",
+    "name": "Delete order removes tickets",
+    "description": "Test order deletion cascade",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 132,
+    "priority": 896,
+    "category": "functional",
+    "name": "Cart timeout notification",
+    "description": "Test cart expiry notification",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 134,
+    "priority": 898,
+    "category": "functional",
+    "name": "Widget removes email authentication",
+    "description": "Test widget modification complete",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 140,
+    "priority": 899,
+    "category": "data",
+    "name": "User data persists across sessions",
+    "description": "Test user persistence",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 141,
+    "priority": 900,
+    "category": "data",
+    "name": "Order history accessible",
+    "description": "Test order history retrieval",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 142,
+    "priority": 901,
+    "category": "data",
+    "name": "Ticket retrieval by barcode",
+    "description": "Test ticket lookup",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 155,
+    "priority": 911,
+    "category": "state",
+    "name": "Cart state in widget preserved",
+    "description": "Test cart persistence",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 156,
+    "priority": 912,
+    "category": "cascade",
+    "name": "Inactive agent hides events",
+    "description": "Test agent active status effect",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 162,
+    "priority": 916,
+    "category": "feedback",
+    "name": "Purchase confirmation notification",
+    "description": "Test purchase success notification",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 168,
+    "priority": 918,
+    "category": "temporal",
+    "name": "Event countdown timer",
+    "description": "Test countdown to event start",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 169,
+    "priority": 919,
+    "category": "concurrency",
+    "name": "Multiple users reserve different seats",
+    "description": "Test parallel reservations",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 172,
+    "priority": 921,
+    "category": "performance",
+    "name": "Widget loads quickly",
+    "description": "Test WebApp load time",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 174,
+    "priority": 922,
+    "category": "functional",
+    "name": "Multiple tickets in single order",
+    "description": "Test multi-ticket purchase",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 175,
+    "priority": 923,
+    "category": "functional",
+    "name": "Cancel reservation releases seats",
+    "description": "Test reservation cancellation",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 176,
+    "priority": 924,
+    "category": "functional",
+    "name": "Ticket PDF generation",
+    "description": "Test PDF ticket option",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 181,
+    "priority": 927,
+    "category": "functional",
+    "name": "Redis connection for caching",
+    "description": "Test Redis integration",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 182,
+    "priority": 928,
+    "category": "functional",
+    "name": "Background job processing",
+    "description": "Test arq task queue",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 190,
+    "priority": 929,
+    "category": "error",
+    "name": "Widget shows error for unavailable event",
+    "description": "Test event availability error",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 192,
+    "priority": 931,
+    "category": "integration",
+    "name": "WebApp closes after successful payment",
+    "description": "Test WebApp auto-close on payment completion",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 193,
+    "priority": 932,
+    "category": "data",
+    "name": "User last_active_at timestamp updated",
+    "description": "Test activity timestamp tracking",
+    "passes": 0,
+    "in_progress": 0
+  },
+  {
+    "id": 199,
+    "priority": 935,
+    "category": "error",
+    "name": "Handle oversold event gracefully",
+    "description": "Test event capacity handling",
+    "passes": 0,
+    "in_progress": 0
+  }
+]

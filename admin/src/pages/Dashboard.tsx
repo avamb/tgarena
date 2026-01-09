@@ -27,6 +27,17 @@ interface ChartDataPoint {
   revenue: number
 }
 
+interface RecentOrder {
+  id: number
+  bil24_order_id: number
+  user_name: string
+  agent_name: string
+  status: string
+  total_sum: number
+  ticket_count: number
+  created_at: string
+}
+
 type ChartPeriod = 'week' | 'month' | 'year'
 
 export default function Dashboard() {
@@ -36,6 +47,8 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState<ChartDataPoint[]>([])
   const [chartPeriod, setChartPeriod] = useState<ChartPeriod>('week')
   const [chartLoading, setChartLoading] = useState(true)
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
+  const [ordersLoading, setOrdersLoading] = useState(true)
   const authToken = useAuthStore((state) => state.token)
 
   // Fetch dashboard stats
@@ -75,6 +88,33 @@ export default function Dashboard() {
 
     if (authToken) {
       fetchStats()
+    }
+  }, [authToken])
+
+  // Fetch recent orders
+  useEffect(() => {
+    const fetchRecentOrders = async () => {
+      try {
+        setOrdersLoading(true)
+        const response = await fetch('http://localhost:8000/api/admin/dashboard/recent-orders?limit=5', {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+          },
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setRecentOrders(data)
+        }
+      } catch (err) {
+        console.error('Error fetching recent orders:', err)
+      } finally {
+        setOrdersLoading(false)
+      }
+    }
+
+    if (authToken) {
+      fetchRecentOrders()
     }
   }, [authToken])
 
@@ -192,7 +232,51 @@ export default function Dashboard() {
       {/* Recent Orders */}
       <div className="card">
         <h2 className="text-lg font-semibold mb-4">Recent Orders</h2>
-        <p className="text-gray-500">No orders yet.</p>
+        {ordersLoading ? (
+          <div className="flex justify-center py-4">
+            <Loader2 className="h-6 w-6 text-gray-400 animate-spin" />
+          </div>
+        ) : recentOrders.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {recentOrders.map((order) => (
+                  <tr key={order.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">#{order.id}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{order.user_name}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{order.agent_name}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        order.status === 'PAID' ? 'bg-green-100 text-green-800' :
+                        order.status === 'CANCELLED' ? 'bg-red-100 text-red-800' :
+                        order.status === 'PROCESSING' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {order.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">₽{order.total_sum.toLocaleString()}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-gray-500">No orders yet.</p>
+        )}
       </div>
 
       {/* Sales Chart */}

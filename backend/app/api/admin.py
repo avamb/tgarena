@@ -823,11 +823,25 @@ async def get_dashboard_stats(
     )
     active_agents = agents_result.scalar() or 0
 
-    # TODO: Get orders and revenue once Order model is implemented
-    total_orders = 0
-    total_revenue = 0.0
-    orders_today = 0
-    revenue_today = 0.0
+    # Get total orders count
+    orders_result = await db.execute(select(func.count(OrderModel.id)))
+    total_orders = orders_result.scalar() or 0
+
+    # Get total revenue (sum of all order totals)
+    revenue_result = await db.execute(select(func.sum(OrderModel.total_sum)))
+    total_revenue = float(revenue_result.scalar() or 0)
+
+    # Get today's orders and revenue
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    orders_today_result = await db.execute(
+        select(func.count(OrderModel.id)).where(OrderModel.created_at >= today_start)
+    )
+    orders_today = orders_today_result.scalar() or 0
+
+    revenue_today_result = await db.execute(
+        select(func.sum(OrderModel.total_sum)).where(OrderModel.created_at >= today_start)
+    )
+    revenue_today = float(revenue_today_result.scalar() or 0)
 
     return DashboardStats(
         total_users=total_users,
@@ -842,10 +856,34 @@ async def get_dashboard_stats(
 @admin_router.get("/dashboard/recent-orders")
 async def get_recent_orders(
     limit: int = 10,
-    current_user: AdminUser = Depends(get_current_admin_user)
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db)
 ):
     """Get recent orders for dashboard. Requires authentication."""
-    return []
+    # Get recent orders with user and agent info
+    result = await db.execute(
+        select(OrderModel, UserModel, AgentModel)
+        .join(UserModel, OrderModel.user_id == UserModel.id)
+        .join(AgentModel, OrderModel.agent_id == AgentModel.id)
+        .order_by(OrderModel.created_at.desc())
+        .limit(limit)
+    )
+    orders_data = result.all()
+
+    recent_orders = []
+    for order, user, agent in orders_data:
+        recent_orders.append({
+            "id": order.id,
+            "bil24_order_id": order.bil24_order_id,
+            "user_name": f"{user.telegram_first_name} {user.telegram_last_name or ''}".strip(),
+            "agent_name": agent.name,
+            "status": order.status,
+            "total_sum": float(order.total_sum),
+            "ticket_count": order.ticket_count,
+            "created_at": order.created_at.isoformat(),
+        })
+
+    return recent_orders
 
 
 @admin_router.get("/dashboard/sales-chart")
