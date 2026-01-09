@@ -2,14 +2,23 @@
 Webhook API Endpoints
 
 Handles n8n integration and payment callbacks.
+Includes retry logic for webhook delivery.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
-from fastapi import BackgroundTasks, HTTPException, Request, status
+from fastapi import BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import webhook_router
+
+try:
+    from app.core import get_current_admin_user, AdminUser, get_db
+    from app.core.webhook_service import WebhookService
+except ModuleNotFoundError:
+    from backend.app.core import get_current_admin_user, AdminUser, get_db
+    from backend.app.core.webhook_service import WebhookService
 
 
 # =============================================================================
@@ -19,8 +28,14 @@ from . import webhook_router
 
 class WebhookConfig(BaseModel):
     url: str
-    events: list[str] = []
+    events: List[str] = []
     is_active: bool = True
+
+
+class WebhookConfigResponse(BaseModel):
+    url: str
+    events: List[str]
+    is_active: bool
 
 
 class WebhookLogResponse(BaseModel):
@@ -28,47 +43,103 @@ class WebhookLogResponse(BaseModel):
     event_type: str
     payload: Dict[str, Any]
     response_status: Optional[int]
+    response_body: Optional[str]
     success: bool
     sent_at: str
 
 
-# =============================================================================
-# Webhook Configuration (Admin)
-# =============================================================================
+class WebhookLogsResponse(BaseModel):
+    logs: List[WebhookLogResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
 
 
-@webhook_router.get("/config")
-async def get_webhook_config():
-    """Get current webhook configuration."""
-    return {
-        "url": "",
-        "events": ["user.registered", "order.paid"],
-        "is_active": False,
-    }
+class WebhookTestRequest(BaseModel):
+    url: Optional[str] = None  # Optional override URL for testing
 
 
-@webhook_router.put("/config")
-async def update_webhook_config(config: WebhookConfig):
-    """Update webhook configuration."""
-    # TODO: Implement
-    return {"message": "Configuration updated", "config": config.model_dump()}
-
-
-@webhook_router.get("/logs")
-async def get_webhook_logs(page: int = 1, page_size: int = 20):
-    """Get webhook call logs."""
-    return {"logs": [], "total": 0}
-
-
-@webhook_router.post("/test")
-async def test_webhook(background_tasks: BackgroundTasks):
-    """Send test webhook to configured URL."""
-    # TODO: Implement
-    return {"message": "Test webhook sent"}
+class WebhookTestResponse(BaseModel):
+    success: bool
+    attempts: List[Dict[str, Any]]
+    total_attempts: int
+    error: Optional[str] = None
+    log_id: Optional[int] = None
 
 
 # =============================================================================
-# External Webhook Endpoints
+# Webhook Configuration (Admin - Protected)
+# =============================================================================
+
+
+@webhook_router.get("/config", response_model=WebhookConfigResponse)
+async def get_webhook_config(
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get current webhook configuration. Requires authentication."""
+    service = WebhookService(db)
+    config = await service.get_webhook_config()
+    return WebhookConfigResponse(
+        url=config["url"],
+        events=config["events"],
+        is_active=config["is_active"],
+    )
+
+
+@webhook_router.put("/config", response_model=WebhookConfigResponse)
+async def update_webhook_config(
+    config: WebhookConfig,
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update webhook configuration. Requires authentication."""
+    service = WebhookService(db)
+    await service.save_webhook_config(
+        url=config.url,
+        events=config.events,
+        is_active=config.is_active,
+    )
+    return WebhookConfigResponse(
+        url=config.url,
+        events=config.events,
+        is_active=config.is_active,
+    )
+
+
+@webhook_router.get("/logs", response_model=WebhookLogsResponse)
+async def get_webhook_logs(
+    page: int = 1,
+    page_size: int = 20,
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get webhook call logs with pagination. Requires authentication."""
+    service = WebhookService(db)
+    result = await service.get_logs(page=page, page_size=page_size)
+    return WebhookLogsResponse(**result)
+
+
+@webhook_router.post("/test", response_model=WebhookTestResponse)
+async def test_webhook(
+    request: Optional[WebhookTestRequest] = None,
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Send test webhook to configured URL (or override URL).
+    Includes retry logic - will attempt up to 3 times with exponential backoff.
+    Requires authentication.
+    """
+    service = WebhookService(db)
+    url = request.url if request else None
+    result = await service.test_webhook(url=url)
+    return WebhookTestResponse(**result)
+
+
+# =============================================================================
+# External Webhook Endpoints (No auth - called by external services)
 # =============================================================================
 
 
