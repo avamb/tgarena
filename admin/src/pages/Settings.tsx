@@ -1,6 +1,45 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Save } from 'lucide-react'
 import toast from 'react-hot-toast'
+
+// Settings storage key
+const SETTINGS_STORAGE_KEY = 'tg_ticket_agent_settings'
+
+interface SystemSettings {
+  botUsername: string
+  defaultZone: string
+  eventCacheTTL: number
+  webhookUrl: string
+}
+
+const defaultSettings: SystemSettings = {
+  botUsername: '',
+  defaultZone: 'test',
+  eventCacheTTL: 900,
+  webhookUrl: '',
+}
+
+// Load settings from localStorage
+const loadSettings = (): SystemSettings => {
+  try {
+    const stored = localStorage.getItem(SETTINGS_STORAGE_KEY)
+    if (stored) {
+      return { ...defaultSettings, ...JSON.parse(stored) }
+    }
+  } catch (error) {
+    console.error('Failed to load settings:', error)
+  }
+  return defaultSettings
+}
+
+// Save settings to localStorage
+const saveSettings = (settings: SystemSettings) => {
+  try {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings))
+  } catch (error) {
+    console.error('Failed to save settings:', error)
+  }
+}
 
 // Password complexity requirements: Min 8 chars, mixed case, numbers
 const validatePassword = (password: string): { valid: boolean; error: string } => {
@@ -25,7 +64,20 @@ export default function Settings() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordError, setPasswordError] = useState('')
 
+  // System settings state
+  const [settings, setSettings] = useState<SystemSettings>(defaultSettings)
+
+  // Load settings on mount
+  useEffect(() => {
+    setSettings(loadSettings())
+  }, [])
+
+  const updateSetting = <K extends keyof SystemSettings>(key: K, value: SystemSettings[K]) => {
+    setSettings(prev => ({ ...prev, [key]: value }))
+  }
+
   const handleSave = () => {
+    saveSettings(settings)
     toast.success('Settings saved!')
   }
 
@@ -81,14 +133,36 @@ export default function Settings() {
               type="text"
               className="w-full"
               placeholder="@YourBotUsername"
+              value={settings.botUsername}
+              onChange={(e) => updateSetting('botUsername', e.target.value)}
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Webhook URL
+            </label>
+            <input
+              type="url"
+              className="w-full"
+              placeholder="https://example.com/webhook"
+              value={settings.webhookUrl}
+              onChange={(e) => updateSetting('webhookUrl', e.target.value)}
+            />
+            <p className="mt-1 text-sm text-gray-500">
+              URL for receiving order notifications
+            </p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Default Zone
             </label>
-            <select className="w-full">
+            <select
+              className="w-full"
+              value={settings.defaultZone}
+              onChange={(e) => updateSetting('defaultZone', e.target.value)}
+            >
               <option value="test">Test</option>
               <option value="real">Real</option>
             </select>
@@ -104,7 +178,8 @@ export default function Settings() {
             <input
               type="number"
               className="w-full"
-              defaultValue={900}
+              value={settings.eventCacheTTL}
+              onChange={(e) => updateSetting('eventCacheTTL', parseInt(e.target.value) || 900)}
               min={60}
               max={3600}
             />

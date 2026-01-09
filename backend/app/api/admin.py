@@ -26,7 +26,7 @@ try:
         get_db,
     )
     from app.core.rate_limiter import login_rate_limiter
-    from app.models import Agent as AgentModel, User as UserModel
+    from app.models import Agent as AgentModel, User as UserModel, Order as OrderModel
 except ModuleNotFoundError:
     from backend.app.core import (
         settings,
@@ -38,7 +38,7 @@ except ModuleNotFoundError:
         get_db,
     )
     from backend.app.core.rate_limiter import login_rate_limiter
-    from backend.app.models import Agent as AgentModel, User as UserModel
+    from backend.app.models import Agent as AgentModel, User as UserModel, Order as OrderModel
 
 
 # =============================================================================
@@ -326,17 +326,57 @@ async def delete_agent(
     return {"message": f"Agent '{agent.name}' deleted successfully"}
 
 
-@admin_router.get("/agents/{agent_id}/stats")
+class AgentStatsResponse(BaseModel):
+    """Statistics for a specific agent."""
+    users: int
+    orders: int
+    revenue: float
+
+
+@admin_router.get("/agents/{agent_id}/stats", response_model=AgentStatsResponse)
 async def get_agent_stats(
     agent_id: int,
-    current_user: AdminUser = Depends(get_current_admin_user)
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    """Get statistics for specific agent. Requires authentication."""
-    return {
-        "users": 0,
-        "orders": 0,
-        "revenue": 0.0,
-    }
+    """Get statistics for specific agent. Requires authentication.
+
+    Returns:
+    - users: Count of users whose current_agent_id matches this agent
+    - orders: Count of orders associated with this agent
+    - revenue: Sum of total_sum for PAID orders associated with this agent
+    """
+    # Verify agent exists
+    agent_result = await db.execute(select(AgentModel).where(AgentModel.id == agent_id))
+    if not agent_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    # Count users with this agent as current_agent
+    users_result = await db.execute(
+        select(func.count(UserModel.id)).where(UserModel.current_agent_id == agent_id)
+    )
+    users_count = users_result.scalar() or 0
+
+    # Count orders for this agent
+    orders_result = await db.execute(
+        select(func.count(OrderModel.id)).where(OrderModel.agent_id == agent_id)
+    )
+    orders_count = orders_result.scalar() or 0
+
+    # Sum revenue from PAID orders for this agent
+    revenue_result = await db.execute(
+        select(func.coalesce(func.sum(OrderModel.total_sum), 0)).where(
+            OrderModel.agent_id == agent_id,
+            OrderModel.status == "PAID"
+        )
+    )
+    revenue_total = float(revenue_result.scalar() or 0)
+
+    return AgentStatsResponse(
+        users=users_count,
+        orders=orders_count,
+        revenue=revenue_total,
+    )
 
 
 # =============================================================================
@@ -499,7 +539,85 @@ async def get_recent_orders(
 @admin_router.get("/dashboard/sales-chart")
 async def get_sales_chart(
     period: str = "week",
-    current_user: AdminUser = Depends(get_current_admin_user)
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db)
 ):
-    """Get sales chart data. Requires authentication."""
-    return {"labels": [], "data": []}
+    """Get sales chart data. Requires authentication.
+
+    Returns aggregated orders and revenue data for the specified period.
+    Period can be 'week', 'month', or 'year'.
+    """
+    from datetime import timedelta
+    from sqlalchemy import cast, Date
+
+    now = datetime.utcnow()
+
+    # Determine date range based on period
+    if period == 'week':
+        start_date = now - timedelta(days=7)
+        days = 7
+        date_format = '%b %d'  # e.g., "Jan 09"
+    elif period == 'month':
+        start_date = now - timedelta(days=30)
+        days = 30
+        date_format = '%b %d'
+    else:  # year
+        start_date = now - timedelta(days=365)
+        days = 12  # Group by month
+        date_format = '%b'  # e.g., "Jan"
+
+    # Generate all date labels for the period
+    labels = []
+    data = []
+
+    if period == 'year':
+        # Group by month for yearly view
+        for i in range(12):
+            date = now - timedelta(days=(11-i)*30)
+            labels.append(date.strftime('%b'))
+            data.append({'orders': 0, 'revenue': 0})
+    else:
+        # Daily for week/month view
+        for i in range(days):
+            date = now - timedelta(days=(days-1-i))
+            labels.append(date.strftime(date_format))
+            data.append({'orders': 0, 'revenue': 0})
+
+    # Query orders from database within the date range
+    try:
+        result = await db.execute(
+            select(
+                cast(OrderModel.created_at, Date).label('order_date'),
+                func.count(OrderModel.id).label('order_count'),
+                func.coalesce(func.sum(OrderModel.total_sum), 0).label('total_revenue')
+            )
+            .where(OrderModel.created_at >= start_date)
+            .group_by(cast(OrderModel.created_at, Date))
+            .order_by(cast(OrderModel.created_at, Date))
+        )
+        orders_by_date = result.all()
+
+        # Map orders to the corresponding date slots
+        for row in orders_by_date:
+            order_date = row.order_date
+            if period == 'year':
+                # Find the month slot
+                month_label = order_date.strftime('%b')
+                for i, label in enumerate(labels):
+                    if label == month_label:
+                        data[i]['orders'] += int(row.order_count)
+                        data[i]['revenue'] += float(row.total_revenue or 0)
+                        break
+            else:
+                # Find the day slot
+                date_label = order_date.strftime(date_format)
+                for i, label in enumerate(labels):
+                    if label == date_label:
+                        data[i]['orders'] = int(row.order_count)
+                        data[i]['revenue'] = float(row.total_revenue or 0)
+                        break
+    except Exception as e:
+        # Log error but return empty data structure
+        print(f"Error fetching sales chart data: {e}")
+
+    return {"labels": labels, "data": data}

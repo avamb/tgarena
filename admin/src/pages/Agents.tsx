@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Plus, Edit, Trash2, Copy, X, Save, Loader2, BarChart3, Users, ShoppingCart, DollarSign, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../store/auth'
-import { useBlocker } from 'react-router-dom'
+import { useBlocker, useNavigate, Link } from 'react-router-dom'
 
 interface Agent {
   id: number
@@ -46,11 +46,21 @@ export default function Agents() {
   const [loading, setLoading] = useState(false)
   const [loadingAgents, setLoadingAgents] = useState(true)
   const [loadingStats, setLoadingStats] = useState(false)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null)
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
   const [agentStats, setAgentStats] = useState<AgentStats | null>(null)
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false)
   const authToken = useAuthStore((state) => state.token)
+  const logout = useAuthStore((state) => state.logout)
+  const navigate = useNavigate()
+
+  // Handle 401 unauthorized - session expired
+  const handleUnauthorized = useCallback(() => {
+    toast.error('Session expired. Please login again.')
+    logout()
+    navigate('/login')
+  }, [logout, navigate])
 
   // Check if form has unsaved changes
   const hasUnsavedChanges = useCallback(() => {
@@ -77,6 +87,7 @@ export default function Agents() {
 
   const fetchAgents = async () => {
     setLoadingAgents(true)
+    setFetchError(null)
     try {
       const response = await fetch('http://localhost:8000/api/admin/agents', {
         headers: {
@@ -87,11 +98,14 @@ export default function Agents() {
         const data = await response.json()
         setAgents(data)
       } else if (response.status === 401) {
-        toast.error('Session expired. Please login again.')
+        handleUnauthorized()
+        return
+      } else {
+        setFetchError('Failed to load agents. Server returned an error.')
       }
     } catch (error) {
       console.error('Failed to fetch agents:', error)
-      // Use empty array if API fails
+      setFetchError('Unable to connect to server. Please check your network connection.')
     } finally {
       setLoadingAgents(false)
     }
@@ -120,6 +134,9 @@ export default function Agents() {
       if (response.ok) {
         const stats = await response.json()
         setAgentStats(stats)
+      } else if (response.status === 401) {
+        handleUnauthorized()
+        return
       } else {
         toast.error('Failed to load agent stats')
       }
@@ -198,7 +215,8 @@ export default function Agents() {
         }
         closeModal()
       } else if (response.status === 401) {
-        toast.error('Session expired. Please login again.')
+        handleUnauthorized()
+        return
       } else {
         const error = await response.json()
         toast.error(error.detail || 'Failed to save agent')
@@ -242,7 +260,8 @@ export default function Agents() {
         setAgents(prev => prev.filter(a => a.id !== agent.id))
         toast.success('Agent deleted successfully!')
       } else if (response.status === 401) {
-        toast.error('Session expired. Please login again.')
+        handleUnauthorized()
+        return
       } else {
         const error = await response.json()
         toast.error(error.detail || 'Failed to delete agent')
@@ -289,11 +308,23 @@ export default function Agents() {
         </button>
       </div>
 
-      <div className="card overflow-hidden">
+      <div className="card overflow-x-auto">
         {loadingAgents ? (
           <div className="text-center py-12">
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary-600" />
             <p className="text-gray-500 mt-2">Loading agents...</p>
+          </div>
+        ) : fetchError ? (
+          <div className="text-center py-12">
+            <AlertTriangle className="h-12 w-12 mx-auto text-red-500 mb-4" />
+            <p className="text-red-600 font-medium mb-2">Error Loading Agents</p>
+            <p className="text-gray-500 mb-4">{fetchError}</p>
+            <button
+              onClick={fetchAgents}
+              className="btn btn-primary"
+            >
+              Try Again
+            </button>
           </div>
         ) : agents.length === 0 ? (
           <div className="text-center py-12">
@@ -323,7 +354,14 @@ export default function Agents() {
               {agents.map((agent) => (
                 <tr key={agent.id}>
                   <td className="font-mono text-sm text-gray-500">{agent.id}</td>
-                  <td className="font-medium">{agent.name}</td>
+                  <td className="font-medium max-w-[200px] truncate" title={agent.name}>
+                    <Link
+                      to={`/agents/${agent.id}`}
+                      className="text-primary-600 hover:text-primary-800 hover:underline"
+                    >
+                      {agent.name}
+                    </Link>
+                  </td>
                   <td className="font-mono text-sm">{agent.fid}</td>
                   <td>
                     <span className={`badge ${agent.zone === 'real' ? 'badge-success' : 'badge-warning'}`}>

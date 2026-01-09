@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Search, Filter, Loader2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Search, Filter, Loader2, Download } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { useAuthStore } from '../store/auth'
 
 interface Agent {
@@ -23,6 +25,7 @@ interface User {
 }
 
 export default function Users() {
+  const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [agents, setAgents] = useState<Agent[]>([])
@@ -111,9 +114,63 @@ export default function Users() {
     })
   }
 
+  // Export users to CSV
+  const exportUsers = () => {
+    try {
+      // Generate CSV content
+      const headers = ['ID', 'Chat ID', 'Username', 'First Name', 'Last Name', 'Language', 'Agent ID', 'Agent Name', 'Created At', 'Last Active']
+      const csvRows = [headers.join(',')]
+
+      users.forEach((user) => {
+        const row = [
+          user.id,
+          user.telegram_chat_id,
+          user.telegram_username || '',
+          `"${user.telegram_first_name}"`,
+          `"${user.telegram_last_name || ''}"`,
+          user.preferred_language,
+          user.current_agent_id || '',
+          `"${getAgentName(user.current_agent_id)}"`,
+          user.created_at,
+          user.last_active_at || ''
+        ]
+        csvRows.push(row.join(','))
+      })
+
+      if (users.length === 0) {
+        csvRows.push('No users found')
+      }
+
+      const csvContent = csvRows.join('\n')
+
+      // Create and download the file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.setAttribute('href', url)
+      link.setAttribute('download', `users_export_${new Date().toISOString().split('T')[0]}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      toast.success(`Exported ${users.length} users to CSV`)
+    } catch (error) {
+      console.error('Failed to export users:', error)
+      toast.error('Failed to export users')
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Users</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-gray-900">Users</h1>
+        <button onClick={exportUsers} className="btn btn-secondary">
+          <Download className="h-5 w-5 mr-2" />
+          Export CSV
+        </button>
+      </div>
 
       {/* Filters */}
       <div className="card">
@@ -150,7 +207,7 @@ export default function Users() {
       </div>
 
       {/* Users Table */}
-      <div className="card overflow-hidden">
+      <div className="card overflow-x-auto">
         {loading ? (
           <div className="text-center py-12">
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary-600" />
@@ -177,7 +234,11 @@ export default function Users() {
                 </tr>
               ) : (
                 users.map((user) => (
-                  <tr key={user.id}>
+                  <tr
+                    key={user.id}
+                    onClick={() => navigate(`/users/${user.id}`)}
+                    className="cursor-pointer hover:bg-gray-50"
+                  >
                     <td className="font-mono text-sm">{user.telegram_chat_id}</td>
                     <td>
                       {user.telegram_username ? (

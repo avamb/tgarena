@@ -1,11 +1,15 @@
 """
 Security and Authentication utilities for TG-Ticket-Agent.
 
-Provides JWT token creation/validation and password hashing.
+Provides JWT token creation/validation, password hashing, and Telegram initData verification.
 """
 
+import hashlib
+import hmac
+import json
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Dict, Optional, Tuple
+from urllib.parse import parse_qs, unquote
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -117,3 +121,147 @@ async def get_current_admin_user(
 
 # Alias for convenience
 get_current_user = get_current_admin_user
+
+
+# =============================================================================
+# Telegram WebApp InitData Verification
+# =============================================================================
+
+
+class TelegramUser(BaseModel):
+    """Telegram user data extracted from initData."""
+    id: int
+    first_name: str
+    last_name: Optional[str] = None
+    username: Optional[str] = None
+    language_code: Optional[str] = None
+    is_premium: Optional[bool] = None
+
+
+class TelegramInitData(BaseModel):
+    """Parsed and verified Telegram initData."""
+    user: TelegramUser
+    chat_instance: Optional[str] = None
+    chat_type: Optional[str] = None
+    auth_date: int
+    hash: str
+    query_id: Optional[str] = None
+    start_param: Optional[str] = None
+
+
+def verify_telegram_init_data(init_data: str) -> Tuple[bool, Optional[TelegramInitData], Optional[str]]:
+    """
+    Verify Telegram WebApp initData signature.
+
+    Implements the verification algorithm described in:
+    https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
+
+    Args:
+        init_data: The raw initData string from Telegram WebApp
+
+    Returns:
+        Tuple of (is_valid, parsed_data, error_message)
+    """
+    if not settings.TELEGRAM_BOT_TOKEN:
+        return False, None, "TELEGRAM_BOT_TOKEN not configured"
+
+    if not init_data:
+        return False, None, "init_data is empty"
+
+    try:
+        # Parse the query string
+        parsed = parse_qs(init_data, keep_blank_values=True)
+
+        # Extract hash and remove it from data for verification
+        received_hash = parsed.get('hash', [''])[0]
+        if not received_hash:
+            return False, None, "No hash in init_data"
+
+        # Build the data-check-string
+        # Sort all key=value pairs alphabetically by key, excluding hash
+        data_pairs = []
+        for key, values in parsed.items():
+            if key != 'hash':
+                # Use the first value if multiple
+                value = values[0] if values else ''
+                data_pairs.append(f"{key}={value}")
+
+        data_pairs.sort()
+        data_check_string = "\n".join(data_pairs)
+
+        # Create secret key using HMAC-SHA256 of bot token with "WebAppData" as key
+        secret_key = hmac.new(
+            b"WebAppData",
+            settings.TELEGRAM_BOT_TOKEN.encode(),
+            hashlib.sha256
+        ).digest()
+
+        # Calculate expected hash
+        calculated_hash = hmac.new(
+            secret_key,
+            data_check_string.encode(),
+            hashlib.sha256
+        ).hexdigest()
+
+        # Verify hash matches
+        if not hmac.compare_digest(calculated_hash, received_hash):
+            return False, None, "Invalid signature"
+
+        # Parse user data
+        user_json = parsed.get('user', [''])[0]
+        if not user_json:
+            return False, None, "No user data in init_data"
+
+        user_data = json.loads(unquote(user_json))
+        user = TelegramUser(**user_data)
+
+        # Build TelegramInitData object
+        auth_date = int(parsed.get('auth_date', ['0'])[0])
+
+        telegram_data = TelegramInitData(
+            user=user,
+            chat_instance=parsed.get('chat_instance', [None])[0],
+            chat_type=parsed.get('chat_type', [None])[0],
+            auth_date=auth_date,
+            hash=received_hash,
+            query_id=parsed.get('query_id', [None])[0],
+            start_param=parsed.get('start_param', [None])[0],
+        )
+
+        # Optional: Check if auth_date is not too old (e.g., within 24 hours)
+        # current_time = int(datetime.utcnow().timestamp())
+        # if current_time - auth_date > 86400:  # 24 hours
+        #     return False, None, "init_data has expired"
+
+        return True, telegram_data, None
+
+    except json.JSONDecodeError as e:
+        return False, None, f"Invalid JSON in user data: {e}"
+    except Exception as e:
+        return False, None, f"Error parsing init_data: {e}"
+
+
+def require_valid_telegram_init_data(init_data: str) -> TelegramInitData:
+    """
+    Verify Telegram initData and raise HTTPException if invalid.
+
+    Use this as a dependency or call directly in route handlers.
+
+    Args:
+        init_data: The raw initData string from Telegram WebApp
+
+    Returns:
+        Parsed TelegramInitData if valid
+
+    Raises:
+        HTTPException 401 if verification fails
+    """
+    is_valid, data, error = verify_telegram_init_data(init_data)
+
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid Telegram authentication: {error}"
+        )
+
+    return data

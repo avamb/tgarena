@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from './store/auth'
 
 // Pages
@@ -19,9 +19,11 @@ import Layout from './components/Layout'
 // Protected route wrapper component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const location = useLocation()
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />
+    // Save the intended destination so we can redirect after login
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />
   }
 
   return <>{children}</>

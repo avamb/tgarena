@@ -1,0 +1,6 @@
+ID,Chat ID,Username,First Name,Last Name,Language,Agent ID,Agent Name,Created At,Last Active
+5,444555666,,"Anonymous","",en,,"-",2026-01-09T02:05:39.961289,2026-01-09T02:05:39.961289
+4,111222333,boris_user,"Boris","User",ru,5,"RENAMED_AGENT_FOR_TEST",2026-01-09T02:05:38.014469,2026-01-09T02:05:38.014469
+3,555666777,alex_test,"Alex","Testing",ru,3,"Deep Link Test Agent Updated",2026-01-09T02:05:35.945507,2026-01-09T02:05:35.945507
+2,987654321,jane_smith,"Jane","Smith",ru,,"-",2026-01-09T02:05:34.073719,2026-01-09T02:05:34.073719
+1,123456789,john_doe,"John","Doe",en,3,"Deep Link Test Agent Updated",2026-01-09T02:05:23.682457,2026-01-09T02:05:23.682457

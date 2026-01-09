@@ -1,11 +1,15 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
 import toast from 'react-hot-toast'
 
 export default function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
   const login = useAuthStore((state) => state.login)
+
+  // Get the intended destination from location state, default to dashboard
+  const from = (location.state as { from?: string })?.from || '/dashboard'
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -33,7 +37,7 @@ export default function Login() {
           role: payload.role,
         })
         toast.success('Login successful!')
-        navigate('/dashboard')
+        navigate(from, { replace: true })
       } else {
         const error = await response.json()
         toast.error(error.detail || 'Invalid credentials')
