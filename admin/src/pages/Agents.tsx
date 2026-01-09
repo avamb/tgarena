@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
-import { Plus, Edit, Trash2, Copy, X, Save, Loader2, BarChart3, Users, ShoppingCart, DollarSign } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Plus, Edit, Trash2, Copy, X, Save, Loader2, BarChart3, Users, ShoppingCart, DollarSign, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../store/auth'
+import { useBlocker } from 'react-router-dom'
 
 interface Agent {
   id: number
@@ -41,13 +42,33 @@ export default function Agents() {
   const [showModal, setShowModal] = useState(false)
   const [showStatsModal, setShowStatsModal] = useState(false)
   const [formData, setFormData] = useState<AgentFormData>(initialFormData)
+  const [originalFormData, setOriginalFormData] = useState<AgentFormData>(initialFormData)
   const [loading, setLoading] = useState(false)
   const [loadingAgents, setLoadingAgents] = useState(true)
   const [loadingStats, setLoadingStats] = useState(false)
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null)
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
   const [agentStats, setAgentStats] = useState<AgentStats | null>(null)
+  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false)
   const authToken = useAuthStore((state) => state.token)
+
+  // Check if form has unsaved changes
+  const hasUnsavedChanges = useCallback(() => {
+    if (!showModal) return false
+    return (
+      formData.name !== originalFormData.name ||
+      formData.fid !== originalFormData.fid ||
+      formData.token !== originalFormData.token ||
+      formData.zone !== originalFormData.zone ||
+      formData.is_active !== originalFormData.is_active
+    )
+  }, [showModal, formData, originalFormData])
+
+  // Block navigation when there are unsaved changes
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      hasUnsavedChanges() && currentLocation.pathname !== nextLocation.pathname
+  )
 
   // Fetch agents on component mount
   useEffect(() => {
@@ -140,6 +161,10 @@ export default function Agents() {
       toast.error('Bill24 token is required')
       return
     }
+    if (formData.token.trim().length < 10) {
+      toast.error('Bill24 token must be at least 10 characters')
+      return
+    }
 
     setLoading(true)
     try {
@@ -188,13 +213,15 @@ export default function Agents() {
 
   const handleEdit = (agent: Agent) => {
     setEditingAgent(agent)
-    setFormData({
+    const editFormData = {
       name: agent.name,
       fid: String(agent.fid),
       token: agent.token || '',
       zone: agent.zone,
       is_active: agent.is_active,
-    })
+    }
+    setFormData(editFormData)
+    setOriginalFormData(editFormData)
     setShowModal(true)
   }
 
@@ -229,13 +256,24 @@ export default function Agents() {
   const openAddModal = () => {
     setEditingAgent(null)
     setFormData(initialFormData)
+    setOriginalFormData(initialFormData)
     setShowModal(true)
   }
 
   const closeModal = () => {
+    if (hasUnsavedChanges()) {
+      setShowUnsavedWarning(true)
+      return
+    }
+    forceCloseModal()
+  }
+
+  const forceCloseModal = () => {
     setShowModal(false)
     setEditingAgent(null)
     setFormData(initialFormData)
+    setOriginalFormData(initialFormData)
+    setShowUnsavedWarning(false)
   }
 
   return (
@@ -528,6 +566,67 @@ export default function Agents() {
                 className="btn btn-secondary"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unsaved Changes Warning Dialog (for modal close) */}
+      {showUnsavedWarning && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl">
+            <div className="flex items-center mb-4">
+              <AlertTriangle className="h-6 w-6 text-amber-500 mr-3" />
+              <h2 className="text-lg font-bold text-gray-900">Unsaved Changes</h2>
+            </div>
+            <p className="text-gray-600 mb-6">
+              You have unsaved changes. Are you sure you want to discard them?
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowUnsavedWarning(false)}
+                className="btn btn-secondary"
+              >
+                Stay
+              </button>
+              <button
+                onClick={forceCloseModal}
+                className="btn btn-danger"
+              >
+                Discard Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Navigation Blocker Dialog (for route change) */}
+      {blocker.state === 'blocked' && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl">
+            <div className="flex items-center mb-4">
+              <AlertTriangle className="h-6 w-6 text-amber-500 mr-3" />
+              <h2 className="text-lg font-bold text-gray-900">Unsaved Changes</h2>
+            </div>
+            <p className="text-gray-600 mb-6">
+              You have unsaved changes. Are you sure you want to leave this page?
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => blocker.reset?.()}
+                className="btn btn-secondary"
+              >
+                Stay
+              </button>
+              <button
+                onClick={() => {
+                  forceCloseModal()
+                  blocker.proceed?.()
+                }}
+                className="btn btn-danger"
+              >
+                Leave Page
               </button>
             </div>
           </div>
