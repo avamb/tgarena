@@ -880,6 +880,76 @@ async def get_order_tickets(
     ]
 
 
+@admin_router.get("/tickets/lookup")
+async def lookup_ticket_by_barcode(
+    barcode: str,
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Look up a ticket by barcode number. Requires authentication."""
+    from sqlalchemy.orm import joinedload
+
+    if not barcode or not barcode.strip():
+        raise HTTPException(status_code=400, detail="Barcode is required")
+
+    result = await db.execute(
+        select(TicketModel)
+        .options(joinedload(TicketModel.order))
+        .where(TicketModel.barcode_number == barcode.strip())
+    )
+    ticket = result.unique().scalar_one_or_none()
+
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    # Get order and user info for the response
+    order_result = await db.execute(
+        select(OrderModel, UserModel, AgentModel)
+        .join(UserModel, OrderModel.user_id == UserModel.id)
+        .join(AgentModel, OrderModel.agent_id == AgentModel.id)
+        .where(OrderModel.id == ticket.order_id)
+    )
+    row = order_result.unique().one_or_none()
+
+    if row:
+        order, user, agent = row
+        user_name = f"{user.telegram_first_name or ''} {user.telegram_last_name or ''}".strip()
+        if not user_name and user.telegram_username:
+            user_name = f"@{user.telegram_username}"
+        elif not user_name:
+            user_name = f"User #{user.id}"
+    else:
+        user_name = "Unknown"
+        agent = None
+
+    return {
+        "ticket": {
+            "id": ticket.id,
+            "order_id": ticket.order_id,
+            "bil24_ticket_id": ticket.bil24_ticket_id,
+            "event_name": ticket.event_name,
+            "event_date": ticket.event_date.isoformat() if ticket.event_date else None,
+            "venue_name": ticket.venue_name,
+            "sector": ticket.sector,
+            "row": ticket.row,
+            "seat": ticket.seat,
+            "price": float(ticket.price),
+            "barcode_number": ticket.barcode_number,
+            "status": ticket.status,
+            "sent_to_user": ticket.sent_to_user,
+            "sent_at": ticket.sent_at.isoformat() if ticket.sent_at else None,
+        },
+        "order": {
+            "id": ticket.order.id,
+            "status": ticket.order.status,
+            "total_sum": float(ticket.order.total_sum),
+            "created_at": ticket.order.created_at.isoformat() if ticket.order.created_at else None,
+        },
+        "user_name": user_name,
+        "agent_name": agent.name if agent else "Unknown",
+    }
+
+
 # =============================================================================
 # Dashboard Endpoints (Auth required)
 # =============================================================================
