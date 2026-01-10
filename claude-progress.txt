@@ -2,7 +2,7 @@
 
 ## Current Status: 100% Complete (201/201 features passing)
 
-## Session 60 - January 10, 2025
+## Session 61 - January 10, 2025
 
 ### Regression Testing Performed
 - Backend API running on port 8000 (health check: OK, Redis connected)
@@ -12,24 +12,27 @@
 
 ### Regression Tests Executed:
 
-1. **Feature #11 (Toggle agent active status)** - VERIFIED
-   - Navigated to Agents page
-   - Edited agent "RENAMED_AGENT_FOR_TEST" (ID 5)
-   - Unchecked "Active" checkbox
-   - Clicked "Update Agent"
-   - Status changed from "Active" to "Inactive"
-   - Refreshed page - status persisted
-   - Re-enabled agent back to "Active" - successful
+1. **Feature #48 (Admin sidebar navigation)** - VERIFIED
+   - Clicked Dashboard link - page loads correctly
+   - Clicked Agents link - shows 26 agents with pagination
+   - Clicked Users link - shows 5 users with filters
+   - Clicked Orders link - shows 1 order with details
+   - Clicked Webhooks link - shows configuration and logs tabs
+   - Clicked Settings link - shows general settings and password change
+   - All navigation links work correctly
 
-2. **Feature #90 (Search with special characters)** - VERIFIED
-   - Searched for '@#$%' - no errors, 0 results (expected)
-   - Searched for '"quoted"' - no errors, 0 results (expected)
-   - Clear button works correctly
-   - No JavaScript errors in console
+2. **Feature #105 (Mobile layout at 375px)** - VERIFIED
+   - Resized viewport to 375x667
+   - Sidebar collapses to hamburger menu
+   - Stats cards stack vertically
+   - No content cut off
+   - Hamburger menu opens sidebar overlay with all navigation items
+   - Buttons are tappable size
 
-3. **Feature #69 (Payment failure handling)** - SKIPPED
-   - Requires Telegram bot interaction (external service)
-   - Bot container is running and healthy
+3. **Feature #200 (Admin header shows current page title)** - VERIFIED
+   - Navigated to Agents page - breadcrumb shows "Dashboard > Agents"
+   - Navigated to Users page - breadcrumb shows "Dashboard > Users"
+   - Page heading updates correctly for each page
 
 ### Dashboard Stats:
 - Total Users: 5
@@ -41,90 +44,33 @@
 ### API Status: All endpoints responding correctly
 
 ### Screenshots Captured:
-- regression-session60-dashboard.png
-- regression-session60-agents-list.png
-- regression-session60-agent-status-toggled.png
-- regression-session60-search-special-chars.png
+- regression-session61-dashboard.png
+- regression-session61-mobile-375.png
+- regression-session61-mobile-menu-open.png
+- regression-session61-users-page.png
+
+---
+
+## Session 60 - January 10, 2025
+
+### Regression Tests Executed:
+1. **Feature #11 (Toggle agent active status)** - VERIFIED
+2. **Feature #90 (Search with special characters)** - VERIFIED
+3. **Feature #69 (Payment failure handling)** - SKIPPED (requires Telegram bot)
 
 ---
 
 ## Session 58 - January 10, 2025
 
-### Regression Testing Performed
-- Backend API running on port 8000 (health check: OK, Redis connected)
-- Frontend dev server running on port 5173
-- All Docker containers healthy (bot, api, postgres, redis)
-- Admin panel fully functional
-
 ### Regression Tests Executed:
-
 1. **Feature #66 (Duplicate agent FID rejected)** - VERIFIED
-   - Navigated to Agents page
-   - Clicked "Add Agent" button
-   - Filled in form with duplicate FID 12345
-   - Clicked "Create Agent"
-   - Server returned 400 Bad Request
-   - Error message "Agent with FID 12345 already exists" displayed
-   - Unique constraint working correctly
-
 2. **Feature #125 (No console errors in normal operation)** - VERIFIED
-   - Navigated through all admin pages:
-     - Dashboard: Stats cards, recent orders, sales chart functional
-     - Agents: 26 agents displayed with pagination
-     - Users: 5 users with search/filter functionality
-     - Orders: 1 order with correct details
-     - Webhooks: Configuration and logs tabs functional
-     - Settings: General settings and password change forms
-   - No JavaScript errors in console
-   - Only expected HTTP 400 from duplicate FID test
-
-3. **Feature #143 (Bot menu buttons work)** - SKIPPED
-   - Requires Telegram bot interaction (external service)
-   - Bot container is running and healthy
-
-### Dashboard Stats:
-- Total Users: 5
-- Total Orders: 1
-- Revenue: 2500 RUB
-- Active Agents: 25
-
-### Additional Verifications:
-- XSS test agent `<script>alert('XSS')</script>` displays safely (escaped text)
-- Long agent names truncated with ellipsis
-- Unsaved changes confirmation dialog working
-- Pagination working on Agents page (3 pages)
-
-### Console Errors: None (only expected 400 from duplicate FID test)
-### API Status: All endpoints responding correctly
-
-### Screenshots Captured:
-- regression-session58-dashboard.png
-- regression-session58-agents.png
-- regression-session58-duplicate-fid-error.png
-- regression-session58-settings.png
-
----
-
-## Session 57 - January 10, 2025
-
-### Regression Tests Executed:
-1. **Feature #179 (Healthcheck endpoint works)** - VERIFIED
-2. **Feature #188 (Modal close returns to previous state)** - VERIFIED
-3. **Feature #137 (XSS prevention in user content)** - VERIFIED
-
----
-
-## Session 56 - January 10, 2025
-
-### Regression Tests Executed:
-1. **Feature #179 (Healthcheck endpoint works)** - VERIFIED
-2. **Feature #188 (Modal close returns to previous state)** - VERIFIED
-3. **Feature #137 (XSS prevention in user content)** - VERIFIED
+3. **Feature #143 (Bot menu buttons work)** - SKIPPED (requires Telegram bot)
 
 ---
 
 ## Previous Sessions Summary
-- Sessions 1-55: Implemented all 201 features and verified through extensive regression testing
+- Sessions 1-59: Implemented all 201 features and verified through extensive regression testing
 - Full purchase flow working: browse -> select seats -> pay -> receive ticket
 - Admin panel complete with agents, users, orders management
 - Webhook configuration and logging implemented
