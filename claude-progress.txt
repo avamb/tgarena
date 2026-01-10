@@ -2,6 +2,52 @@
 
 ## Current Status: 100% Complete (201/201 features passing)
 
+## Session 67 - January 10, 2025
+
+### Regression Testing Performed
+- Backend API running on port 8000 (health check: OK, Redis connected)
+- Frontend dev server running on port 5173
+- All navigation and functionality verified
+
+### Regression Tests Executed:
+
+1. **Feature #187 (After login redirect to intended page)** - VERIFIED
+   - Navigated to /agents while logged out
+   - Got redirected to login page
+   - Logged in with admin/changeme123
+   - Was correctly redirected to /agents (not dashboard)
+   - Redirect after authentication working correctly
+
+2. **Feature #173 (System settings persistence)** - VERIFIED
+   - Navigated to Settings page
+   - Changed webhook URL from "https://example.com/webhook" to "https://test-session67.example.com/webhook"
+   - Clicked Save Settings, saw "Settings saved!" confirmation
+   - Refreshed page - setting persisted correctly
+   - Restored original webhook URL
+
+3. **Feature #193 (User last_active_at timestamp updated)** - VERIFIED
+   - Navigated to Users page
+   - Clicked on John Doe user
+   - User details showed "Last Active: January 9, 2026 at 02:05 AM"
+   - Timestamp tracking working correctly
+
+### Pages Verified:
+- Dashboard: Stats cards (5 users, 1 order, ₽2500, 25 agents), chart, recent orders
+- Agents: 26 agents listed with pagination
+- Users: 5 users with details view
+- Settings: General settings with persistence, password change, About section
+
+### Console Errors: None
+
+### Screenshots Captured:
+- regression_session67_dashboard.png
+- regression_session67_redirect_after_login.png
+- regression_session67_settings_before.png
+- regression_session67_settings_persisted.png
+- regression_session67_user_last_active.png
+
+---
+
 ## Session 66 - January 10, 2025
 
 ### Regression Testing Performed
