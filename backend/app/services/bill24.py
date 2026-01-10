@@ -303,6 +303,7 @@ class Bill24Client:
         params = {
             "actionEventId": action_event_id,
             "seatList": seat_ids,
+            "type": "RESERVE",
         }
         response = await self._request("RESERVATION", params)
         return {
