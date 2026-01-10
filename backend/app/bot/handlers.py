@@ -57,11 +57,16 @@ async def get_or_create_user(session: AsyncSession, message: Message) -> User:
             telegram_last_name=telegram_user.last_name,
             telegram_language_code=telegram_user.language_code,
             preferred_language=get_user_language(telegram_user.language_code),
+            last_active_at=datetime.now(timezone.utc),
         )
         session.add(user)
         await session.commit()
         await session.refresh(user)
         logger.info(f"Created new user: chat_id={telegram_user.id}, username={telegram_user.username}")
+    else:
+        # Update last_active_at for existing user
+        user.last_active_at = datetime.now(timezone.utc)
+        await session.commit()
 
     return user
 
