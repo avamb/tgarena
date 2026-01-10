@@ -46,6 +46,12 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "no_tickets": "У вас пока нет билетов.",
         "ticket_info": "🎫 <b>{event_name}</b>\n\n📅 {date}\n📍 {venue}\n🪑 {sector}, Ряд {row}, Место {seat}\n💰 {price} ₽",
 
+        # Order status notifications
+        "order_new": "📝 <b>Заказ #{order_id} создан</b>\n\nОжидаем оплаты...\nСумма: {amount} ₽",
+        "order_paid": "✅ <b>Заказ #{order_id} оплачен!</b>\n\nСумма: {amount} ₽\nВаши билеты будут отправлены в ближайшее время.",
+        "order_cancelled": "❌ <b>Заказ #{order_id} отменён</b>",
+        "order_refunded": "💸 <b>Возврат по заказу #{order_id}</b>\n\nСумма возврата: {amount} ₽",
+
         # Errors
         "error_general": "Произошла ошибка. Пожалуйста, попробуйте позже.",
         "error_no_agent": "Для покупки билетов используйте ссылку от агента.",
@@ -102,6 +108,12 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         # Tickets
         "no_tickets": "You don't have any tickets yet.",
         "ticket_info": "🎫 <b>{event_name}</b>\n\n📅 {date}\n📍 {venue}\n🪑 {sector}, Row {row}, Seat {seat}\n💰 {price} ₽",
+
+        # Order status notifications
+        "order_new": "📝 <b>Order #{order_id} created</b>\n\nAwaiting payment...\nAmount: {amount} ₽",
+        "order_paid": "✅ <b>Order #{order_id} paid!</b>\n\nAmount: {amount} ₽\nYour tickets will be sent shortly.",
+        "order_cancelled": "❌ <b>Order #{order_id} cancelled</b>",
+        "order_refunded": "💸 <b>Refund for order #{order_id}</b>\n\nRefund amount: {amount} ₽",
 
         # Errors
         "error_general": "An error occurred. Please try again later.",
