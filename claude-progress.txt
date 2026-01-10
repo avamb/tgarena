@@ -2,6 +2,68 @@
 
 ## Current Status: 100% Complete (201/201 features passing)
 
+## Session 41 - January 10, 2026
+
+### Regression Testing Performed
+- All Docker containers running (bot, api, postgres, redis)
+- Frontend dev server running on port 5173
+- Backend API responding on port 8000
+- Admin panel fully functional
+
+### Regression Tests Executed:
+
+1. **Feature #117 (Event dates display correctly)** - PASSED
+   - Navigated to Orders page
+   - Clicked on Order #1 to view details
+   - Event date "February 15, 2025 at 07:00 PM" properly formatted
+   - Time included in date display
+   - Venue information displayed alongside date
+
+2. **Feature #193 (User last_active_at timestamp updated)** - PASSED
+   - Navigated to Users page
+   - Clicked on user John Doe to view details
+   - "Last Active" field displayed: January 9, 2026 at 02:05 AM
+   - Timestamp properly formatted with date and time
+   - "Joined" date also displayed correctly
+
+3. **Dashboard Verification** - PASSED
+   - Total Users: 5
+   - Total Orders: 1
+   - Revenue: ₽2500
+   - Active Agents: 25
+   - Recent Orders table showing Order #1
+   - Sales Overview chart displayed
+
+4. **Agents Page Verification** - PASSED
+   - 26 agents displayed with pagination (3 pages)
+   - Status badges (Active/Inactive) correctly colored
+   - Zone badges (test) showing
+   - Deep Link copy button present
+   - Actions (stats, edit, delete) available
+   - XSS protection working (script tags displayed as text)
+
+### Console Errors: None
+### API Status: All endpoints responding correctly (health check OK)
+
+### Screenshots Captured:
+- regression-dashboard-session41.png
+- regression-users-session41.png
+- regression-user-detail-session41.png
+- regression-orders-session41.png
+- regression-order-detail-session41.png
+- regression-agents-session41.png
+
+### Application Health:
+- All navigation links work correctly
+- No visual issues observed
+- Date/time formatting consistent across all pages
+- Currency formatting working (₽ symbol)
+- User details page showing all information correctly
+- Order details page with ticket information complete
+- Agents pagination working correctly
+
+---
+
 ## Session 40 - January 10, 2026
 
 ### Regression Testing Performed
