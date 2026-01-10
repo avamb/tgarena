@@ -1,5 +1,106 @@
 # TG-Ticket-Agent Development Progress
 
+## Session 30 - Bot Navigation, Webhooks, and Status Notifications
+## Date: January 10, 2026
+
+### Session Summary
+
+This session focused on implementing bot navigation features, payment callback processing, and order status notifications. Added event details view with back navigation, implemented purchase confirmation notifications, and added order status localization.
+
+### Work Completed This Session
+
+1. **Feature #143: Bot menu buttons work** - Verified menu buttons are present and respond correctly with tests.
+
+2. **Feature #144: Back to events from details** - Added event details view with back navigation:
+   - `callback_event_details` handler for showing event info
+   - `callback_back_to_events` handler for returning to event list
+   - `build_event_details_message` and `build_event_details_keyboard` helpers
+
+3. **Feature #145: Close WebApp returns to chat** - Verified native Telegram behavior.
+
+4. **Feature #146: Handle invalid agent deep link** - Verified parse_deep_link handles invalid formats gracefully.
+
+5. **Feature #147: Handle Bill24 API down** - Verified retry mechanism (3 attempts, exponential backoff) and user-friendly errors.
+
+6. **Feature #149: n8n webhook receives data** - Verified webhook service with config, retry logic, and logging.
+
+7. **Feature #150: Payment callback processed** - Implemented payment_callback handler:
+   - Updates order status to PAID/CANCELLED
+   - Triggers ticket delivery job
+   - Sends order.paid webhook if configured
+
+8. **Feature #155: Cart state in widget preserved** - Verified Bill24 session-based cart persistence.
+
+9. **Feature #156: Inactive agent hides events** - Added is_active checks to all event handlers.
+
+10. **Feature #157: User agent link on deep link change** - Verified agent switching updates current_agent_id.
+
+11. **Feature #158: Preferred language from Telegram** - Verified language detection from Telegram code.
+
+12. **Feature #162: Purchase confirmation notification** - Implemented process_ticket_delivery_job.
+
+13. **Feature #163: Order status updates in bot** - Added order status localization (new, paid, cancelled, refunded).
+
+14. **Feature #154: Bot conversation state preserved** - Verified state persistence via database.
+
+### Test Files Created
+
+- `backend/tests/test_bot_menu_buttons.py`
+- `backend/tests/test_back_to_events.py`
+- `backend/tests/test_invalid_deep_link.py`
+- `backend/tests/test_bill24_api_down.py`
+- `backend/tests/test_n8n_webhook.py`
+- `backend/tests/test_payment_callback.py`
+- `backend/tests/test_cart_persistence.py`
+- `backend/tests/test_inactive_agent.py`
+- `backend/tests/test_agent_switching.py`
+- `backend/tests/test_language_detection.py`
+- `backend/tests/test_purchase_confirmation.py`
+- `backend/tests/test_order_status_notifications.py`
+- `backend/tests/test_conversation_state.py`
+
+### Localization Messages Added
+
+- `btn_back_to_events` - Back to events button
+- `error_event_not_found` - Event not found error
+- `loading_event` - Loading event message
+- `order_new` - New order notification
+- `order_paid` - Paid order notification
+- `order_cancelled` - Cancelled order notification
+- `order_refunded` - Refund notification
+
+### Feature Statistics
+
+Total Features: 201
+Passing: 164
+In Progress: 0
+Percentage Complete: 81.6%
+
+### Progress This Session
+
+- Session 29: 148/201 (73.6%)
+- Session 30: 164/201 (81.6%) - +16 features
+
+### Files Modified
+
+1. **backend/app/bot/handlers.py**
+   - Added event details view and back navigation
+   - Added is_active checks to all event handlers
+   - Imported get_age_restriction_text
+
+2. **backend/app/bot/localization.py**
+   - Added event navigation strings
+   - Added order status notification strings
+
+3. **backend/app/api/webhooks.py**
+   - Implemented payment_callback handler
+   - Added PaymentCallbackRequest/Response models
+
+4. **backend/app/core/background_jobs.py**
+   - Implemented process_ticket_delivery_job
+
+---
+
 ## Session 29 - Error Handling and Bot Features
 ## Date: January 10, 2026
 
