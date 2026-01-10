@@ -417,6 +417,11 @@ async def callback_view_events(callback: CallbackQuery):
             await callback.message.answer(get_text("error_no_agent", lang))
             return
 
+        # Check if agent is active
+        if not agent.is_active:
+            await callback.message.answer(get_text("error_agent_inactive", lang))
+            return
+
         # Show loading message
         loading_msg = await callback.message.answer(get_text("loading_events", lang))
 
@@ -484,6 +489,11 @@ async def callback_events_page(callback: CallbackQuery):
 
         if not agent:
             await callback.message.edit_text(get_text("error_no_agent", lang))
+            return
+
+        # Check if agent is active
+        if not agent.is_active:
+            await callback.message.edit_text(get_text("error_agent_inactive", lang))
             return
 
         try:
@@ -599,6 +609,11 @@ async def callback_event_details(callback: CallbackQuery):
             await callback.message.edit_text(get_text("error_no_agent", lang))
             return
 
+        # Check if agent is active
+        if not agent.is_active:
+            await callback.message.edit_text(get_text("error_agent_inactive", lang))
+            return
+
         try:
             # Fetch events from Bill24
             events = await fetch_events_from_bill24(agent)
@@ -657,6 +672,11 @@ async def callback_back_to_events(callback: CallbackQuery):
 
         if not agent:
             await callback.message.edit_text(get_text("error_no_agent", lang))
+            return
+
+        # Check if agent is active
+        if not agent.is_active:
+            await callback.message.edit_text(get_text("error_agent_inactive", lang))
             return
 
         try:
