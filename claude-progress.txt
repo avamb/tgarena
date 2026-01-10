@@ -2,6 +2,52 @@
 
 ## Current Status: 100% Complete (201/201 features passing)
 
+## Session 60 - January 10, 2025
+
+### Regression Testing Performed
+- Backend API running on port 8000 (health check: OK, Redis connected)
+- Frontend dev server running on port 5173
+- All Docker containers healthy (bot, api, postgres, redis)
+- Admin panel fully functional
+
+### Regression Tests Executed:
+
+1. **Feature #11 (Toggle agent active status)** - VERIFIED
+   - Navigated to Agents page
+   - Edited agent "RENAMED_AGENT_FOR_TEST" (ID 5)
+   - Unchecked "Active" checkbox
+   - Clicked "Update Agent"
+   - Status changed from "Active" to "Inactive"
+   - Refreshed page - status persisted
+   - Re-enabled agent back to "Active" - successful
+
+2. **Feature #90 (Search with special characters)** - VERIFIED
+   - Searched for '@#$%' - no errors, 0 results (expected)
+   - Searched for '"quoted"' - no errors, 0 results (expected)
+   - Clear button works correctly
+   - No JavaScript errors in console
+
+3. **Feature #69 (Payment failure handling)** - SKIPPED
+   - Requires Telegram bot interaction (external service)
+   - Bot container is running and healthy
+
+### Dashboard Stats:
+- Total Users: 5
+- Total Orders: 1
+- Revenue: 2500 RUB
+- Active Agents: 25
+
+### Console Errors: None
+### API Status: All endpoints responding correctly
+
+### Screenshots Captured:
+- regression-session60-dashboard.png
+- regression-session60-agents-list.png
+- regression-session60-agent-status-toggled.png
+- regression-session60-search-special-chars.png
+
+---
+
 ## Session 58 - January 10, 2025
 
 ### Regression Testing Performed
