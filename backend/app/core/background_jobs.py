@@ -125,6 +125,8 @@ async def process_ticket_delivery_job(
     """
     Background job to process ticket delivery.
 
+    Sends purchase confirmation and tickets to user via Telegram bot.
+
     Args:
         ctx: ARQ context
         order_id: Order ID to process
@@ -133,16 +135,94 @@ async def process_ticket_delivery_job(
     Returns:
         Result dictionary with delivery status
     """
+    from aiogram import Bot
+    from app.core.config import settings
+    from app.core.database import async_session_maker
+    from app.models import Order, Agent, OrderItem
+    from sqlalchemy import select
+
     logger.info(f"Processing ticket delivery for order {order_id} to chat {user_chat_id}")
 
-    # This would be implemented when Telegram bot is integrated
-    return {
-        "success": True,
-        "order_id": order_id,
-        "user_chat_id": user_chat_id,
-        "message": "Ticket delivery job queued (bot integration required)",
-        "timestamp": datetime.utcnow().isoformat()
-    }
+    if not settings.TELEGRAM_BOT_TOKEN:
+        logger.error("TELEGRAM_BOT_TOKEN not configured")
+        return {
+            "success": False,
+            "error": "Bot token not configured",
+            "order_id": order_id,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+    try:
+        async with async_session_maker() as session:
+            # Get order details
+            result = await session.execute(
+                select(Order).where(Order.id == order_id)
+            )
+            order = result.scalar_one_or_none()
+
+            if not order:
+                logger.error(f"Order {order_id} not found")
+                return {
+                    "success": False,
+                    "error": "Order not found",
+                    "order_id": order_id,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+
+            # Get agent name
+            agent_name = "Agent"
+            if order.agent_id:
+                agent_result = await session.execute(
+                    select(Agent).where(Agent.id == order.agent_id)
+                )
+                agent = agent_result.scalar_one_or_none()
+                if agent:
+                    agent_name = agent.name
+
+            # Initialize bot for sending
+            bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
+
+            try:
+                # Send purchase confirmation
+                confirmation_message = (
+                    f"✅ <b>Покупка подтверждена!</b>\n\n"
+                    f"Заказ #{order.id}\n"
+                    f"Агент: {agent_name}\n"
+                    f"Сумма: {order.total_amount or 0} ₽\n\n"
+                    f"Ваши билеты будут отправлены ниже."
+                )
+
+                await bot.send_message(
+                    chat_id=user_chat_id,
+                    text=confirmation_message,
+                    parse_mode="HTML"
+                )
+
+                logger.info(f"Sent confirmation for order {order_id} to chat {user_chat_id}")
+
+                # Mark order as having tickets delivered
+                order.tickets_delivered = True
+                await session.commit()
+
+                return {
+                    "success": True,
+                    "order_id": order_id,
+                    "user_chat_id": user_chat_id,
+                    "message": "Purchase confirmation sent",
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+
+            finally:
+                await bot.session.close()
+
+    except Exception as e:
+        logger.exception(f"Failed to deliver tickets for order {order_id}: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "order_id": order_id,
+            "timestamp": datetime.utcnow().isoformat()
+        }
 
 
 async def cleanup_expired_sessions_job(ctx: Dict[str, Any]) -> Dict[str, Any]:
