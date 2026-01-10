@@ -340,31 +340,43 @@ class Bill24Client:
 
     async def create_order(
         self,
+        success_url: str,
+        fail_url: str,
         email: Optional[str] = None,
         phone: Optional[str] = None,
+        full_name: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Create order from current cart.
 
         Args:
+            success_url: URL for redirect after successful payment (required)
+            fail_url: URL for redirect after failed payment (required)
             email: Customer email (optional, using Telegram)
             phone: Customer phone (optional)
+            full_name: Customer full name for ticket (optional)
 
         Returns:
-            Dict with orderId and payment info
+            Dict with orderId, formUrl (payment link), and status
         """
-        params = {}
+        params = {
+            "successUrl": success_url,
+            "failUrl": fail_url,
+        }
         if email:
             params["email"] = email
         if phone:
             params["phone"] = phone
+        if full_name:
+            params["fullName"] = full_name
 
         response = await self._request("CREATE_ORDER", params)
         return {
             "orderId": response.get("orderId"),
-            "status": response.get("status"),
-            "paymentLink": response.get("paymentLink"),
-            "totalSum": response.get("totalSum"),
+            "formUrl": response.get("formUrl"),
+            "externalOrderId": response.get("externalOrderId"),
+            "statusExtStr": response.get("statusExtStr"),
+            "statusExtInt": response.get("statusExtInt"),
         }
 
     async def pay_order(self, order_id: int) -> Dict[str, Any]:
