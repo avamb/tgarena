@@ -2,7 +2,7 @@
 
 ## Current Status: 100% Complete (201/201 features passing)
 
-## Session 35 - January 10, 2026
+## Session 36 - January 10, 2026
 
 ### Regression Testing Performed
 - All Docker containers running (bot, api, postgres, redis)
@@ -11,30 +11,32 @@
 - Admin panel fully functional
 
 ### Regression Tests Executed:
-1. **Feature #88 (Pagination resets on filter change)** - PASSED
-   - Navigated to Agents page (26 agents, 3 pages)
-   - Clicked to page 3 of 3
-   - Applied search filter "Test Agent 1"
-   - Verified pagination reset to Page 1 of 2
-   - 11 matching agents displayed correctly
+1. **Feature #25 (Test webhook endpoint)** - PASSED
+   - Navigated to Webhooks page
+   - Configured test webhook URL (https://httpbin.org/post)
+   - Enabled webhooks checkbox
+   - Clicked "Test Webhook" button
+   - Verified success message: "Webhook Sent Successfully"
+   - HTTP 200 response received
+   - Webhook logs showing test events with timestamps
 
-2. **Feature #181 (Redis connection for caching)** - PASSED
-   - Redis container running and healthy
-   - redis-cli PING returns PONG
-   - API health check shows "redis":"connected"
+2. **Feature #28 (Deep link registers user with agent)** - PASSED
+   - Verified deep link format: https://t.me/YourBotUsername?start=agent_{id}
+   - Agent detail page shows deep link with Copy button
+   - Users page shows 5 users linked to agents:
+     - Boris User -> RENAMED_AGENT_FOR_TEST
+     - Alex Testing -> Deep Link Test Agent Updated
+     - John Doe -> Bill24 Test Agent (Official)
+   - Agent filter dropdown working correctly
 
-3. **Feature #37 (Complete purchase flow end-to-end)** - PASSED
-   - Orders page displays order data correctly
-   - Order #1 details fully visible:
-     - Total: 2,500.00 RUB
-     - 2 tickets for "Test Concert Event"
-     - Customer: John Doe
-     - Agent: Deep Link Test Agent Updated
-     - Bill24 Order ID: 123456789
-     - Seat details: Sector A, Row 5, Seats 12 & 13
-   - All data persisted in database
+3. **Feature #158 (Preferred language from Telegram)** - PASSED
+   - User detail page shows "Preferred Language: RU" badge
+   - Language codes (RU/EN) displayed in users table
+   - Language detection from Telegram settings working
+   - All user profile information displayed correctly
 
 ### Console Errors: None
+### API Status: All endpoints returning 200 OK
 
 ### Application Health:
 - Dashboard displays correctly with stats (5 users, 1 order, 2500 revenue, 25 active agents)
@@ -42,9 +44,10 @@
 - No visual issues observed
 - Sales chart renders correctly
 - Recent orders table displays properly
+- Redis connected and healthy
 
 ## Previous Sessions Summary
-- Sessions 1-34: Implemented all 201 features and verified
+- Sessions 1-35: Implemented all 201 features and verified
 - Full purchase flow working: browse -> select seats -> pay -> receive ticket
 - Admin panel complete with agents, users, orders management
 - Webhook configuration and logging implemented
