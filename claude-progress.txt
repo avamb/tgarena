@@ -2,40 +2,62 @@
 
 ## Current Status: 100% Complete (201/201 features passing)
 
-## Session 74 - January 10, 2026
+## Session 75 - January 10, 2026
 
 ### Regression Testing Performed
-- Backend API running on port 8000
+- Backend API running on port 8000 (Docker container)
 - Frontend dev server running on port 5177
 - PostgreSQL and Redis Docker containers healthy
 
 ### Regression Tests Executed:
 
-1. **Feature #20 (View order details with tickets)** - VERIFIED
-   - Logged into admin panel (admin/changeme123)
-   - Navigated to Orders page (1 order total)
-   - Clicked on Order #1 to view details
-   - Verified order information displayed:
-     - Order ID: 1, Bill24 Order ID: 123456789
-     - Status: Cancelled
-     - Total Amount: 2,500.00 RUB
-     - Customer: John Doe (linked to user page)
-     - Agent: Deep Link Test Agent Updated (linked to agent page)
-   - Verified tickets list (2 tickets):
-     - Event: Test Concert Event at Moscow Concert Hall
-     - Seats: Sector A, Row 5, Seats 12 & 13
-     - Price: 1,250.00 RUB each
-     - Barcodes displayed
+1. **Dashboard Page** - VERIFIED
+   - Stats cards displaying correctly:
+     - Total Users: 5
+     - Total Orders: 1
+     - Revenue: P2500
+     - Active Agents: 26
+   - Recent Orders table showing Order #1
+   - Sales Overview chart rendering with Week/Month/Year toggles
 
-2. **Feature #90 (Search with special characters)** - VERIFIED
-   - Searched for special chars on Users page - no error
-   - Searched for quoted strings on Users page - no error
-   - Both searches showed "No users found" as expected
+2. **Orders Page** - VERIFIED
+   - 1 order displayed with proper filtering options
+   - Order #1 details: John Doe, Deep Link Test Agent, CANCELLED, P2,500
+
+3. **Order Details Page (Feature #142 - Ticket retrieval by barcode)** - VERIFIED
+   - Order information section complete
+   - 2 tickets displayed with:
+     - Event: Test Concert Event
+     - Venue: Moscow Concert Hall
+     - Seats: Sector A, Row 5, Seats 12 & 13
+     - Barcodes: BC001234567890, BC001234567891
+
+4. **Agents Page** - VERIFIED
+   - 27 agents total with pagination (3 pages)
+   - XSS protection working (script tags displayed as text)
+   - Deep link copy buttons functional
+   - Action buttons (Stats, Edit, Delete) present
+
+5. **Users Page** - VERIFIED
+   - 5 users displayed
+   - Search and agent filter working
+   - User data correctly displayed
 
 ### Console Errors: None
 
 ### Screenshots Captured:
-- regression_order_details.png
+- regression_dashboard.png
+- regression_order_details_tickets.png
+- regression_agents_page.png
+- regression_users_page.png
+
+---
+
+## Session 74 - January 10, 2026
+
+### Regression Tests Executed:
+1. Feature #20 (View order details with tickets) - VERIFIED
+2. Feature #90 (Search with special characters) - VERIFIED
 
 ---
 
@@ -54,7 +76,13 @@
 - Telegram bot functional
 
 ## Application Architecture
-- Frontend: React 18 + Vite + Tailwind CSS
-- Backend: FastAPI + SQLAlchemy + PostgreSQL + Redis
+- Frontend: React 18 + Vite + Tailwind CSS (port 5177)
+- Backend: FastAPI + SQLAlchemy + PostgreSQL + Redis (port 8000)
 - Bot: aiogram 3.x
 - Deployment: Docker Compose
+
+## Services Running:
+- tg-ticket-agent-api-dev (port 8000)
+- tg-ticket-agent-bot-dev
+- tg-ticket-agent-postgres-dev (port 5432)
+- tg-ticket-agent-redis-dev (port 6379)
