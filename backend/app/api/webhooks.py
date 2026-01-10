@@ -5,20 +5,29 @@ Handles n8n integration and payment callbacks.
 Includes retry logic for webhook delivery.
 """
 
+import logging
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from . import webhook_router
 
 try:
     from app.core import get_current_admin_user, AdminUser, get_db
     from app.core.webhook_service import WebhookService
+    from app.core.background_jobs import enqueue_ticket_delivery, enqueue_webhook
+    from app.models import Order, User, OrderStatus
 except ModuleNotFoundError:
     from backend.app.core import get_current_admin_user, AdminUser, get_db
     from backend.app.core.webhook_service import WebhookService
+    from backend.app.core.background_jobs import enqueue_ticket_delivery, enqueue_webhook
+    from backend.app.models import Order, User, OrderStatus
+
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -66,6 +75,24 @@ class WebhookTestResponse(BaseModel):
     total_attempts: int
     error: Optional[str] = None
     log_id: Optional[int] = None
+
+
+class PaymentCallbackRequest(BaseModel):
+    """Payment callback from acquiring system."""
+    order_id: int  # Our internal order ID
+    external_order_id: Optional[str] = None  # Payment gateway order ID
+    status: str  # "success", "failure", "pending"
+    amount: Optional[float] = None
+    currency: Optional[str] = "RUB"
+    transaction_id: Optional[str] = None
+    signature: Optional[str] = None  # For callback verification
+
+
+class PaymentCallbackResponse(BaseModel):
+    """Response for payment callback."""
+    status: str
+    order_id: int
+    message: Optional[str] = None
 
 
 # =============================================================================
@@ -155,21 +182,111 @@ async def n8n_webhook(request: Request):
     return {"status": "received", "event": body.get("event")}
 
 
-@webhook_router.post("/payment-callback")
-async def payment_callback(request: Request, background_tasks: BackgroundTasks):
+@webhook_router.post("/payment-callback", response_model=PaymentCallbackResponse)
+async def payment_callback(
+    callback: PaymentCallbackRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
     """
     Payment callback from acquiring system.
 
     Called after payment is processed to update order status
     and trigger ticket delivery.
     """
-    body = await request.json()
+    logger.info(f"Payment callback received for order {callback.order_id}: {callback.status}")
 
-    # TODO: Validate callback signature
-    # TODO: Update order status
-    # TODO: Trigger ticket delivery
+    # Find the order
+    result = await db.execute(
+        select(Order).where(Order.id == callback.order_id)
+    )
+    order = result.scalar_one_or_none()
 
-    return {"status": "ok"}
+    if not order:
+        logger.error(f"Order {callback.order_id} not found for payment callback")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Order {callback.order_id} not found"
+        )
+
+    # Check if order is already in final state
+    if order.status in [OrderStatus.PAID, OrderStatus.REFUNDED]:
+        logger.warning(f"Order {callback.order_id} already in final state: {order.status}")
+        return PaymentCallbackResponse(
+            status="ignored",
+            order_id=callback.order_id,
+            message=f"Order already in state: {order.status.value}"
+        )
+
+    # Process based on callback status
+    if callback.status == "success":
+        # Update order status to PAID
+        order.status = OrderStatus.PAID
+        order.paid_at = datetime.utcnow()
+
+        if callback.transaction_id:
+            order.payment_id = callback.transaction_id
+
+        await db.commit()
+        logger.info(f"Order {callback.order_id} marked as PAID")
+
+        # Get user for ticket delivery
+        user_result = await db.execute(
+            select(User).where(User.id == order.user_id)
+        )
+        user = user_result.scalar_one_or_none()
+
+        if user and user.telegram_chat_id:
+            # Enqueue ticket delivery job
+            await enqueue_ticket_delivery(
+                order_id=order.id,
+                user_chat_id=user.telegram_chat_id
+            )
+            logger.info(f"Ticket delivery enqueued for order {order.id}")
+
+        # Send webhook notification for order.paid event
+        webhook_payload = {
+            "order_id": order.id,
+            "bill24_order_id": order.bill24_order_id,
+            "user_id": order.user_id,
+            "agent_id": order.agent_id,
+            "total_amount": float(order.total_amount) if order.total_amount else 0,
+            "paid_at": order.paid_at.isoformat() if order.paid_at else None,
+            "transaction_id": callback.transaction_id,
+        }
+
+        # Get webhook service and send
+        service = WebhookService(db)
+        config = await service.get_webhook_config()
+        if config.get("is_active") and "order.paid" in config.get("events", []):
+            await service.send_webhook("order.paid", webhook_payload)
+
+        return PaymentCallbackResponse(
+            status="success",
+            order_id=callback.order_id,
+            message="Order marked as paid, ticket delivery triggered"
+        )
+
+    elif callback.status == "failure":
+        # Update order status to CANCELLED
+        order.status = OrderStatus.CANCELLED
+        await db.commit()
+        logger.info(f"Order {callback.order_id} cancelled due to payment failure")
+
+        return PaymentCallbackResponse(
+            status="processed",
+            order_id=callback.order_id,
+            message="Order cancelled due to payment failure"
+        )
+
+    else:
+        # Unknown or pending status - just acknowledge
+        logger.info(f"Order {callback.order_id} received status: {callback.status}")
+        return PaymentCallbackResponse(
+            status="acknowledged",
+            order_id=callback.order_id,
+            message=f"Received status: {callback.status}"
+        )
 
 
 @webhook_router.post("/telegram")
