@@ -2,6 +2,67 @@
 
 ## Current Status: 100% Complete (201/201 features passing)
 
+## Session 43 - January 10, 2026
+
+### Regression Testing Performed
+- All Docker containers running (bot, api, postgres, redis)
+- Frontend dev server running on port 5173
+- Backend API responding on port 8000 (health check: OK, Redis connected)
+- Admin panel fully functional
+
+### Regression Tests Executed:
+
+1. **Feature #84 (Delete agent removes from filters)** - PASSED
+   - Created agent TEST_CASCADE_REGRESSION (ID: 41, FID: 999888)
+   - Verified it appeared in Users page agent filter dropdown
+   - Deleted agent - confirmation dialog appeared
+   - Verified agent removed from filter dropdown
+   - Agent count decreased from 27 to 26
+   - Dashboard Active Agents updated to 25 (correct after deletion)
+
+2. **Dashboard Verification** - PASSED
+   - Total Users: 5
+   - Total Orders: 1
+   - Revenue: ₽2500
+   - Active Agents: 25
+   - Recent Orders table showing Order #1 (John Doe, CANCELLED)
+   - Sales Overview chart with Week/Month/Year toggle
+
+3. **Orders Page & Order Details** - PASSED
+   - Orders list showing Order #1 with Bill24 ID
+   - Status badges, links to user/agent working
+   - Order Details page showing:
+     - Total Amount: 2 500,00 ₽
+     - 2 Tickets for Test Concert Event
+     - Event date: February 15, 2025 at 07:00 PM
+     - Venue: Moscow Concert Hall
+     - Seat details (Sector A, Row 5, Seats 12 & 13)
+     - Barcodes displayed
+
+4. **Users Page Verification** - PASSED
+   - 5 users displayed with correct data
+   - Language badges (RU/EN) showing correctly
+   - Agent filter dropdown updated after agent deletion
+   - Search and Export CSV functionality present
+
+### Console Errors: None
+### API Status: All endpoints responding correctly
+
+### Screenshots Captured:
+- regression-feature84-users-page.png
+- regression-session43-dashboard.png
+- regression-session43-order-details.png
+
+### Application Health:
+- All navigation links work correctly
+- No visual issues observed
+- Agent CRUD with cascade to filter dropdowns working
+- Delete confirmation dialogs working
+- Success messages displaying properly
+- Date/currency formatting correct throughout
+
+---
+
 ## Session 42 - January 10, 2026
 
 ### Regression Testing Performed
