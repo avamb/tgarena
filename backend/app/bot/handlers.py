@@ -16,12 +16,12 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKe
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 try:
-    from app.bot.localization import get_text, get_user_language
+    from app.bot.localization import get_text, get_user_language, get_age_restriction_text
     from app.core.database import get_async_session
     from app.models import Agent, User
     from app.services.bill24 import Bill24Client, Bill24Error
 except ModuleNotFoundError:
-    from backend.app.bot.localization import get_text, get_user_language
+    from backend.app.bot.localization import get_text, get_user_language, get_age_restriction_text
     from backend.app.core.database import get_async_session
     from backend.app.models import Agent, User
     from backend.app.services.bill24 import Bill24Client, Bill24Error
@@ -500,6 +500,179 @@ async def callback_events_page(callback: CallbackQuery):
             # Build message and keyboard
             message_text = build_events_list_message(page_events, page=page, total_pages=total_pages, lang=lang)
             keyboard = build_events_pagination_keyboard(page_events, page=page, total_pages=total_pages, lang=lang)
+
+            await callback.message.edit_text(
+                message_text,
+                reply_markup=keyboard,
+                parse_mode="HTML"
+            )
+
+        except Bill24Error as e:
+            logger.error(f"Failed to fetch events: {e}")
+            await callback.message.edit_text(get_text("error_fetching_events", lang))
+        except Exception as e:
+            logger.exception(f"Unexpected error fetching events: {e}")
+            await callback.message.edit_text(get_text("error_general", lang))
+
+
+def build_event_details_message(event: Dict[str, Any], lang: str) -> str:
+    """Build formatted message for event details."""
+    event_name = event.get("fullActionName", event.get("actionName", "Unknown"))
+    event_date = format_event_date(event.get("actionDate", ""))
+    venue = event.get("venueName", event.get("cityName", "TBD"))
+    min_price = event.get("minPrice", 0)
+    max_price = event.get("maxPrice", min_price)
+    age_restriction = event.get("ageRestriction", 0)
+
+    age_text = get_age_restriction_text(age_restriction, lang)
+
+    return get_text(
+        "event_details",
+        lang,
+        name=event_name,
+        date=event_date,
+        venue=venue,
+        min_price=min_price,
+        max_price=max_price,
+        age_restriction=age_text
+    )
+
+
+def build_event_details_keyboard(event_id: int, lang: str) -> InlineKeyboardMarkup:
+    """Build keyboard for event details with buy and back buttons."""
+    builder = InlineKeyboardBuilder()
+
+    # Buy ticket button
+    builder.row(
+        InlineKeyboardButton(
+            text=get_text("btn_buy_ticket", lang),
+            callback_data=f"buy_{event_id}"
+        )
+    )
+
+    # Back to events list button
+    builder.row(
+        InlineKeyboardButton(
+            text=get_text("btn_back_to_events", lang),
+            callback_data="back_to_events"
+        )
+    )
+
+    return builder.as_markup()
+
+
+@router.callback_query(F.data.startswith("event_"))
+async def callback_event_details(callback: CallbackQuery):
+    """Handle event selection - show event details."""
+    telegram_user = callback.from_user
+    lang = get_user_language(telegram_user.language_code if telegram_user else None)
+
+    # Extract event ID from callback data
+    try:
+        event_id = int(callback.data.split("_")[-1])
+    except (ValueError, IndexError):
+        await callback.answer(get_text("error_event_not_found", lang))
+        return
+
+    await callback.answer()
+
+    async for session in get_async_session():
+        # Get user and their current agent
+        result = await session.execute(
+            select(User).where(User.telegram_chat_id == telegram_user.id)
+        )
+        user = result.scalar_one_or_none()
+
+        if not user or not user.current_agent_id:
+            await callback.message.edit_text(get_text("error_no_agent", lang))
+            return
+
+        lang = user.preferred_language or lang
+
+        # Get agent
+        result = await session.execute(
+            select(Agent).where(Agent.id == user.current_agent_id)
+        )
+        agent = result.scalar_one_or_none()
+
+        if not agent:
+            await callback.message.edit_text(get_text("error_no_agent", lang))
+            return
+
+        try:
+            # Fetch events from Bill24
+            events = await fetch_events_from_bill24(agent)
+
+            # Find the selected event
+            event = next((e for e in events if e.get("actionId") == event_id), None)
+
+            if not event:
+                await callback.message.edit_text(get_text("error_event_not_found", lang))
+                return
+
+            # Build message and keyboard
+            message_text = build_event_details_message(event, lang)
+            keyboard = build_event_details_keyboard(event_id, lang)
+
+            await callback.message.edit_text(
+                message_text,
+                reply_markup=keyboard,
+                parse_mode="HTML"
+            )
+
+        except Bill24Error as e:
+            logger.error(f"Failed to fetch event details: {e}")
+            await callback.message.edit_text(get_text("error_fetching_events", lang))
+        except Exception as e:
+            logger.exception(f"Unexpected error fetching event details: {e}")
+            await callback.message.edit_text(get_text("error_general", lang))
+
+
+@router.callback_query(F.data == "back_to_events")
+async def callback_back_to_events(callback: CallbackQuery):
+    """Handle back to events list callback."""
+    telegram_user = callback.from_user
+    lang = get_user_language(telegram_user.language_code if telegram_user else None)
+
+    await callback.answer()
+
+    async for session in get_async_session():
+        # Get user and their current agent
+        result = await session.execute(
+            select(User).where(User.telegram_chat_id == telegram_user.id)
+        )
+        user = result.scalar_one_or_none()
+
+        if not user or not user.current_agent_id:
+            await callback.message.edit_text(get_text("error_no_agent", lang))
+            return
+
+        lang = user.preferred_language or lang
+
+        # Get agent
+        result = await session.execute(
+            select(Agent).where(Agent.id == user.current_agent_id)
+        )
+        agent = result.scalar_one_or_none()
+
+        if not agent:
+            await callback.message.edit_text(get_text("error_no_agent", lang))
+            return
+
+        try:
+            # Fetch events from Bill24
+            events = await fetch_events_from_bill24(agent)
+
+            if not events:
+                await callback.message.edit_text(get_text("no_events", lang))
+                return
+
+            # Get first page
+            page_events, total_pages = get_page_events(events, page=1)
+
+            # Build message and keyboard
+            message_text = build_events_list_message(page_events, page=1, total_pages=total_pages, lang=lang)
+            keyboard = build_events_pagination_keyboard(page_events, page=1, total_pages=total_pages, lang=lang)
 
             await callback.message.edit_text(
                 message_text,

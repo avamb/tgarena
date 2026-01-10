@@ -26,6 +26,7 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "btn_next_event": "➡️ Следующее",
         "btn_prev_event": "⬅️ Предыдущее",
         "btn_back": "🔙 Назад",
+        "btn_back_to_events": "📋 К списку мероприятий",
 
         # Events
         "no_events": "К сожалению, мероприятий пока нет.",
@@ -38,6 +39,8 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "btn_event_select": "🎫 {name}",
         "loading_events": "⏳ Загружаю мероприятия...",
         "error_fetching_events": "Не удалось загрузить мероприятия. Попробуйте позже.",
+        "error_event_not_found": "Мероприятие не найдено.",
+        "loading_event": "⏳ Загружаю информацию о мероприятии...",
 
         # Tickets
         "no_tickets": "У вас пока нет билетов.",
@@ -80,6 +83,7 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "btn_next_event": "➡️ Next",
         "btn_prev_event": "⬅️ Previous",
         "btn_back": "🔙 Back",
+        "btn_back_to_events": "📋 Back to Events",
 
         # Events
         "no_events": "Sorry, there are no events available at the moment.",
@@ -92,6 +96,8 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "btn_event_select": "🎫 {name}",
         "loading_events": "⏳ Loading events...",
         "error_fetching_events": "Failed to load events. Please try again later.",
+        "error_event_not_found": "Event not found.",
+        "loading_event": "⏳ Loading event details...",
 
         # Tickets
         "no_tickets": "You don't have any tickets yet.",
