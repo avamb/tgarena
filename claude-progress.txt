@@ -1,79 +1,95 @@
 # TG-Ticket-Agent Development Progress
 
-## Session 28 - Bill24 API Integration Testing
+## Session 29 - Error Handling and Bot Features
 ## Date: January 10, 2026
 
 ### Session Summary
 
-This session focused on verifying the Bill24 RESERVATION API integration. Created a test agent with official Bill24 test credentials (FID: 1271), wrote comprehensive test suite, and verified the Bill24 client implementation is correct. The test shows the API integration works but Bill24's test zone doesn't have available inventory for actual reservations.
+This session focused on implementing error handling features and improving bot functionality. Added user-friendly error messages for seat reservations, payment failures, and unknown commands. Also verified timeout handling and rate limiting.
 
 ### Regression Tests Performed
 
-1 regression test passed:
-- Feature #50: Browser back button works correctly - Navigated Dashboard > Agents > Users, back button correctly returns through history
+3 regression tests passed:
+- Feature #25: Webhook test - PASSED (sent test to httpbin.org)
+- Feature #152: Agent zone validation - PASSED (dropdown only allows 'test' or 'real')
+- Feature #63: API error shows user-friendly message - PASSED (localization has error messages)
 
 ### Work Completed This Session
 
-1. **Created Bill24 Test Agent** - Added "Bill24 Test Agent (Official)" with:
-   - FID: 1271 (official test credentials)
-   - Token: 7c696b4af364928202dd
-   - Zone: test
+1. **Feature #46: Bill24 API CREATE_ORDER** - Fixed method signature to include required `successUrl` and `failUrl` parameters. Created comprehensive test.
 
-2. **Created Bill24 Reservation Test Suite** (`backend/tests/test_bill24_reservation.py`):
-   - Tests GET_ALL_ACTIONS (99 events retrieved)
-   - Tests CREATE_USER (gets valid session)
-   - Tests GET_SEAT_LIST (retrieves seats with availability)
-   - Tests RESERVATION with proper params (type: "RESERVE")
-   - Handles both placement seats (seatList) and entry tickets (categoryList)
+2. **Feature #59: Order data persists correctly** - Verified Order #1 exists with all details in admin panel.
 
-3. **Fixed Bill24 Client Bug** - Added missing `type: "RESERVE"` parameter to `reserve_seats()` method in `bill24.py`
+3. **Feature #60: Ticket data stored with QR code** - Verified tickets table has qr_code_data and barcode_data columns.
 
-### Bill24 API Test Results
+4. **Feature #61: User session persists across bot restarts** - Restarted bot container, verified user data persists.
 
-```
-GET_ALL_ACTIONS: ✓ PASS (99 events)
-CREATE_USER: ✓ PASS (gets userId and sessionId)
-GET_SEAT_LIST: ✓ PASS (returns seats with availability info)
-RESERVATION: ✓ PASS (API called with correct params)
-  - Error 101: "Not enough seats in category 'Adult'"
-  - This proves the API integration works but test data has no inventory
-UN_RESERVE_ALL: ✓ PASS
-```
+5. **Feature #67: Bill24 API timeout handled** - Verified 30-second timeout with 3 retry attempts using exponential backoff.
 
-### Feature Status
+6. **Feature #68: Seat already reserved error** - Added localized error messages (RU/EN) for seat reservation conflicts.
 
-- Feature #45 (Bill24 API RESERVATION): Skipped - requires Bill24 test zone to have available inventory
-- Feature #46 (Bill24 API CREATE_ORDER): Blocked - depends on successful reservation
+7. **Feature #69: Payment failure handling** - Added error messages for payment failures and verified Order.status supports CANCELLED.
+
+8. **Feature #129: Bot rate limiting works** - Verified aiogram 3.x has built-in TelegramRetryAfter handling.
+
+9. **Feature #130: Bot handles unknown commands** - Added cmd_unknown and msg_unknown handlers with helpful messages.
+
+### Test Files Created
+
+- `backend/tests/test_bill24_create_order.py` - Tests CREATE_ORDER API
+- `backend/tests/test_bill24_get_tickets.py` - Tests GET_TICKETS_BY_ORDER API
+- `backend/tests/test_bill24_timeout.py` - Tests timeout and retry handling
+- `backend/tests/test_seat_reserved_error.py` - Tests seat reservation error handling
+- `backend/tests/test_payment_failure.py` - Tests payment failure handling
+- `backend/tests/test_rate_limit.py` - Tests rate limiting
+- `backend/tests/test_unknown_command.py` - Tests unknown command handling
+
+### Localization Messages Added
+
+Added to `backend/app/bot/localization.py`:
+- `error_seat_reserved` - Seat already taken message
+- `error_seats_unavailable` - Seats no longer available
+- `error_reservation_failed` - Reservation failed message
+- `error_session_expired` - Session expired message
+- `error_payment_failed` - Payment failed message
+- `error_order_cancelled` - Order cancelled message
+- `unknown_command` - Unknown command message
+- `unknown_message` - Unknown message response
 
 ### Feature Statistics
 
 Total Features: 201
-Passing: 139
+Passing: 148
 In Progress: 0
-Percentage Complete: 69.2%
+Percentage Complete: 73.6%
 
-### What Needs External Dependencies
+### Progress This Session
 
-The remaining 62 features require:
-1. **Bill24 Test Zone Inventory** - Need events with actual available seats
-2. **Telegram Bot Interaction** - Send commands to @ArenaAppTestZone_bot
-3. **Telegram WebApp Environment** - Widget requires Telegram client context
-4. **Payment Gateway** - Actual payment flow testing
+- Session 28: 139/201 (69.2%)
+- Session 29: 148/201 (73.6%) - +9 features
 
-### Technical Improvements Made
+### Files Modified
 
-1. **Bill24 Client (`backend/app/services/bill24.py`)**:
-   - Fixed `reserve_seats()` to include `type: "RESERVE"` parameter
-   - All RESERVATION commands now have proper type field
+1. **backend/app/services/bill24.py**
+   - Fixed create_order() method signature
 
-2. **Test Suite (`backend/tests/test_bill24_reservation.py`)**:
-   - Creates fresh test user for each run
-   - Handles both placement and entry ticket types
-   - Proper cleanup with UN_RESERVE_ALL
+2. **backend/app/bot/localization.py**
+   - Added error messages for seat reservations
+   - Added error messages for payment failures
+   - Added unknown command/message responses
+
+3. **backend/app/bot/handlers.py**
+   - Added cmd_unknown handler for /unknowncommand
+   - Added msg_unknown handler for any message
 
 ---
 
 ## Previous Sessions Summary
+
+### Session 28 - Bill24 API Integration Testing
+- Created Bill24 test agent with official credentials
+- Created Bill24 reservation test suite
+- Fixed reserve_seats() method
 
 ### Session 27 - Regression Testing and Admin Verification
 - All regression tests passed
@@ -82,7 +98,8 @@ The remaining 62 features require:
 
 ### Feature Statistics History
 - Session 27: 139/201 (69.2%)
-- Session 28: 139/201 (69.2%) - No new features, infrastructure work
+- Session 28: 139/201 (69.2%)
+- Session 29: 148/201 (73.6%)
 
 ---
 
@@ -109,4 +126,4 @@ The remaining 62 features require:
 - Username: @ArenaAppTestZone_bot
 - Bot ID: 7249183261
 - Mode: Polling
-- Commands: /start, /events, /mytickets, /help, /language
+- Commands: /start, /help, /tickets

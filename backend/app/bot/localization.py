@@ -41,8 +41,16 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "error_no_agent": "Для покупки билетов используйте ссылку от агента.",
         "error_agent_not_found": "Агент не найден. Используйте корректную ссылку.",
         "error_agent_inactive": "Агент временно недоступен.",
+        "error_seat_reserved": "К сожалению, это место уже занято. Пожалуйста, выберите другое место.",
+        "error_seats_unavailable": "Выбранные места недоступны. Пожалуйста, обновите страницу и выберите снова.",
+        "error_reservation_failed": "Не удалось забронировать места. Попробуйте позже.",
+        "error_session_expired": "Сессия истекла. Пожалуйста, начните сначала.",
+        "error_payment_failed": "Оплата не прошла. Ваши места были освобождены.",
+        "error_order_cancelled": "Заказ отменён.",
 
         # Help
+        "unknown_command": "Неизвестная команда. Используйте /help для списка команд.",
+        "unknown_message": "Я не понимаю. Используйте /help для помощи.",
         "help_text": "🎫 <b>TG-Ticket-Agent - Помощь</b>\n\n<b>Как купить билеты:</b>\n1. Перейдите по ссылке от агента\n2. Выберите мероприятие\n3. Нажмите 'Купить билет'\n4. Выберите места в открывшемся окне\n5. Оплатите заказ\n\nБилеты будут отправлены вам в этот чат.\n\n<b>Команды:</b>\n/start - Начать\n/help - Показать это сообщение\n/tickets - Мои билеты",
 
         # Age restriction
@@ -80,8 +88,16 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "error_no_agent": "To purchase tickets, please use the link from an agent.",
         "error_agent_not_found": "Agent not found. Please use a valid link.",
         "error_agent_inactive": "Agent is temporarily unavailable.",
+        "error_seat_reserved": "Sorry, this seat is already taken. Please choose another seat.",
+        "error_seats_unavailable": "Selected seats are no longer available. Please refresh and try again.",
+        "error_reservation_failed": "Failed to reserve seats. Please try again later.",
+        "error_session_expired": "Session expired. Please start again.",
+        "error_payment_failed": "Payment failed. Your seats have been released.",
+        "error_order_cancelled": "Order cancelled.",
 
         # Help
+        "unknown_command": "Unknown command. Use /help for available commands.",
+        "unknown_message": "I don't understand. Use /help for assistance.",
         "help_text": "🎫 <b>TG-Ticket-Agent - Help</b>\n\n<b>How to buy tickets:</b>\n1. Use the link from an agent\n2. Select an event\n3. Click 'Buy Ticket'\n4. Select seats in the opened window\n5. Complete payment\n\nTickets will be sent to this chat.\n\n<b>Commands:</b>\n/start - Start\n/help - Show this message\n/tickets - My tickets",
 
         # Age restriction

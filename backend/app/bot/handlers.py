@@ -231,6 +231,24 @@ async def callback_view_events(callback: CallbackQuery):
     await callback.message.answer(get_text("no_events", lang))
 
 
+@router.message(F.text.startswith("/"))
+async def cmd_unknown(message: Message):
+    """Handle unknown commands - suggest /help."""
+    telegram_user = message.from_user
+    lang = get_user_language(telegram_user.language_code if telegram_user else None)
+
+    await message.answer(get_text("unknown_command", lang))
+
+
+@router.message()
+async def msg_unknown(message: Message):
+    """Handle any other messages - suggest /help."""
+    telegram_user = message.from_user
+    lang = get_user_language(telegram_user.language_code if telegram_user else None)
+
+    await message.answer(get_text("unknown_message", lang))
+
+
 def register_handlers(dp):
     """Register all handlers with the dispatcher."""
     dp.include_router(router)
