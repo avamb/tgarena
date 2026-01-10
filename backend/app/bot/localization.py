@@ -29,8 +29,15 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
 
         # Events
         "no_events": "К сожалению, мероприятий пока нет.",
-        "events_list_title": "Доступные мероприятия:",
+        "events_list_title": "📋 <b>Доступные мероприятия</b>\n\nСтраница {page} из {total_pages}:",
         "event_details": "<b>{name}</b>\n\n📅 Дата: {date}\n📍 Место: {venue}\n💰 Цена: от {min_price} до {max_price} ₽\n{age_restriction}",
+        "event_list_item": "{number}. <b>{name}</b>\n   📅 {date} | 💰 от {min_price} ₽",
+        "btn_page_prev": "⬅️ Назад",
+        "btn_page_next": "➡️ Вперед",
+        "page_info": "Страница {page} из {total}",
+        "btn_event_select": "🎫 {name}",
+        "loading_events": "⏳ Загружаю мероприятия...",
+        "error_fetching_events": "Не удалось загрузить мероприятия. Попробуйте позже.",
 
         # Tickets
         "no_tickets": "У вас пока нет билетов.",
@@ -76,8 +83,15 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
 
         # Events
         "no_events": "Sorry, there are no events available at the moment.",
-        "events_list_title": "Available events:",
+        "events_list_title": "📋 <b>Available Events</b>\n\nPage {page} of {total_pages}:",
         "event_details": "<b>{name}</b>\n\n📅 Date: {date}\n📍 Venue: {venue}\n💰 Price: {min_price} - {max_price} ₽\n{age_restriction}",
+        "event_list_item": "{number}. <b>{name}</b>\n   📅 {date} | 💰 from {min_price} ₽",
+        "btn_page_prev": "⬅️ Previous",
+        "btn_page_next": "➡️ Next",
+        "page_info": "Page {page} of {total}",
+        "btn_event_select": "🎫 {name}",
+        "loading_events": "⏳ Loading events...",
+        "error_fetching_events": "Failed to load events. Please try again later.",
 
         # Tickets
         "no_tickets": "You don't have any tickets yet.",

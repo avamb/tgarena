@@ -5,8 +5,10 @@ Contains all message and callback handlers for the bot.
 """
 
 import logging
+import math
 import re
-from typing import Optional
+from datetime import datetime
+from typing import Optional, List, Dict, Any, Tuple
 
 from aiogram import Router, F
 from aiogram.filters import Command, CommandStart
@@ -17,15 +19,20 @@ try:
     from app.bot.localization import get_text, get_user_language
     from app.core.database import get_async_session
     from app.models import Agent, User
+    from app.services.bill24 import Bill24Client, Bill24Error
 except ModuleNotFoundError:
     from backend.app.bot.localization import get_text, get_user_language
     from backend.app.core.database import get_async_session
     from backend.app.models import Agent, User
+    from backend.app.services.bill24 import Bill24Client, Bill24Error
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
+
+# Events per page for pagination
+EVENTS_PER_PAGE = 5
 
 # Create router for handlers
 router = Router(name="main")
@@ -114,6 +121,165 @@ def get_main_keyboard(lang: str = "ru", has_agent: bool = False) -> InlineKeyboa
     )
 
     return builder.as_markup()
+
+
+async def fetch_events_from_bill24(agent: Agent) -> List[Dict[str, Any]]:
+    """
+    Fetch events from Bill24 API for a given agent.
+
+    Args:
+        agent: Agent model with Bill24 credentials
+
+    Returns:
+        List of event dictionaries
+    """
+    client = Bill24Client(
+        fid=agent.fid,
+        token=agent.token,
+        zone=agent.zone or "test"
+    )
+
+    try:
+        response = await client.get_all_actions()
+        events = response.get("actionList", [])
+
+        # Sort events by date
+        events.sort(key=lambda x: x.get("actionDate", ""))
+
+        return events
+    except Bill24Error as e:
+        logger.error(f"Bill24 API error fetching events: {e}")
+        raise
+    finally:
+        await client.close()
+
+
+def format_event_date(date_str: str) -> str:
+    """Format event date for display."""
+    if not date_str:
+        return "TBD"
+    try:
+        # Bill24 typically returns ISO format or similar
+        dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+        return dt.strftime("%d.%m.%Y %H:%M")
+    except (ValueError, AttributeError):
+        return date_str
+
+
+def build_events_list_message(
+    events: List[Dict[str, Any]],
+    page: int,
+    total_pages: int,
+    lang: str
+) -> str:
+    """Build formatted message with event list."""
+    if not events:
+        return get_text("no_events", lang)
+
+    message_parts = [get_text("events_list_title", lang, page=page, total_pages=total_pages)]
+    message_parts.append("")  # Empty line
+
+    for i, event in enumerate(events, start=1):
+        event_name = event.get("fullActionName", event.get("actionName", "Unknown"))
+        event_date = format_event_date(event.get("actionDate", ""))
+        min_price = event.get("minPrice", 0)
+
+        # Calculate global event number on this page
+        global_number = (page - 1) * EVENTS_PER_PAGE + i
+
+        event_line = get_text(
+            "event_list_item",
+            lang,
+            number=global_number,
+            name=event_name[:50] + ("..." if len(event_name) > 50 else ""),
+            date=event_date,
+            min_price=min_price
+        )
+        message_parts.append(event_line)
+        message_parts.append("")  # Empty line between events
+
+    return "\n".join(message_parts)
+
+
+def build_events_pagination_keyboard(
+    events: List[Dict[str, Any]],
+    page: int,
+    total_pages: int,
+    lang: str
+) -> InlineKeyboardMarkup:
+    """Build keyboard with event selection and pagination."""
+    builder = InlineKeyboardBuilder()
+
+    # Add buttons for each event on current page
+    for i, event in enumerate(events):
+        event_id = event.get("actionId", i)
+        event_name = event.get("fullActionName", event.get("actionName", "Event"))
+
+        # Truncate name for button
+        button_name = event_name[:25] + ("..." if len(event_name) > 25 else "")
+
+        builder.row(
+            InlineKeyboardButton(
+                text=f"🎫 {button_name}",
+                callback_data=f"event_{event_id}"
+            )
+        )
+
+    # Add pagination buttons
+    pagination_buttons = []
+
+    if page > 1:
+        pagination_buttons.append(
+            InlineKeyboardButton(
+                text=get_text("btn_page_prev", lang),
+                callback_data=f"events_page_{page - 1}"
+            )
+        )
+
+    # Page indicator
+    pagination_buttons.append(
+        InlineKeyboardButton(
+            text=f"{page}/{total_pages}",
+            callback_data="noop"  # No action, just display
+        )
+    )
+
+    if page < total_pages:
+        pagination_buttons.append(
+            InlineKeyboardButton(
+                text=get_text("btn_page_next", lang),
+                callback_data=f"events_page_{page + 1}"
+            )
+        )
+
+    if pagination_buttons:
+        builder.row(*pagination_buttons)
+
+    # Back button
+    builder.row(
+        InlineKeyboardButton(
+            text=get_text("btn_back", lang),
+            callback_data="back_to_main"
+        )
+    )
+
+    return builder.as_markup()
+
+
+def get_page_events(events: List[Dict[str, Any]], page: int) -> Tuple[List[Dict[str, Any]], int]:
+    """
+    Get events for a specific page.
+
+    Returns:
+        Tuple of (events_on_page, total_pages)
+    """
+    total_pages = max(1, math.ceil(len(events) / EVENTS_PER_PAGE))
+    page = max(1, min(page, total_pages))
+
+    start_idx = (page - 1) * EVENTS_PER_PAGE
+    end_idx = start_idx + EVENTS_PER_PAGE
+
+    return events[start_idx:end_idx], total_pages
 
 
 @router.message(CommandStart())
@@ -222,13 +388,164 @@ async def callback_my_tickets(callback: CallbackQuery):
 
 @router.callback_query(F.data == "view_events")
 async def callback_view_events(callback: CallbackQuery):
-    """Handle view events button callback."""
+    """Handle view events button callback - shows first page of events."""
     telegram_user = callback.from_user
     lang = get_user_language(telegram_user.language_code if telegram_user else None)
 
     await callback.answer()
-    # TODO: Implement event listing from Bill24
-    await callback.message.answer(get_text("no_events", lang))
+
+    async for session in get_async_session():
+        # Get user and their current agent
+        result = await session.execute(
+            select(User).where(User.telegram_chat_id == telegram_user.id)
+        )
+        user = result.scalar_one_or_none()
+
+        if not user or not user.current_agent_id:
+            await callback.message.answer(get_text("error_no_agent", lang))
+            return
+
+        lang = user.preferred_language or lang
+
+        # Get agent
+        result = await session.execute(
+            select(Agent).where(Agent.id == user.current_agent_id)
+        )
+        agent = result.scalar_one_or_none()
+
+        if not agent:
+            await callback.message.answer(get_text("error_no_agent", lang))
+            return
+
+        # Show loading message
+        loading_msg = await callback.message.answer(get_text("loading_events", lang))
+
+        try:
+            # Fetch events from Bill24
+            events = await fetch_events_from_bill24(agent)
+
+            if not events:
+                await loading_msg.edit_text(get_text("no_events", lang))
+                return
+
+            # Get first page
+            page_events, total_pages = get_page_events(events, page=1)
+
+            # Build message and keyboard
+            message_text = build_events_list_message(page_events, page=1, total_pages=total_pages, lang=lang)
+            keyboard = build_events_pagination_keyboard(page_events, page=1, total_pages=total_pages, lang=lang)
+
+            await loading_msg.edit_text(
+                message_text,
+                reply_markup=keyboard,
+                parse_mode="HTML"
+            )
+
+        except Bill24Error as e:
+            logger.error(f"Failed to fetch events: {e}")
+            await loading_msg.edit_text(get_text("error_fetching_events", lang))
+        except Exception as e:
+            logger.exception(f"Unexpected error fetching events: {e}")
+            await loading_msg.edit_text(get_text("error_general", lang))
+
+
+@router.callback_query(F.data.startswith("events_page_"))
+async def callback_events_page(callback: CallbackQuery):
+    """Handle pagination button callbacks."""
+    telegram_user = callback.from_user
+    lang = get_user_language(telegram_user.language_code if telegram_user else None)
+
+    # Extract page number from callback data
+    try:
+        page = int(callback.data.split("_")[-1])
+    except (ValueError, IndexError):
+        page = 1
+
+    await callback.answer()
+
+    async for session in get_async_session():
+        # Get user and their current agent
+        result = await session.execute(
+            select(User).where(User.telegram_chat_id == telegram_user.id)
+        )
+        user = result.scalar_one_or_none()
+
+        if not user or not user.current_agent_id:
+            await callback.message.edit_text(get_text("error_no_agent", lang))
+            return
+
+        lang = user.preferred_language or lang
+
+        # Get agent
+        result = await session.execute(
+            select(Agent).where(Agent.id == user.current_agent_id)
+        )
+        agent = result.scalar_one_or_none()
+
+        if not agent:
+            await callback.message.edit_text(get_text("error_no_agent", lang))
+            return
+
+        try:
+            # Fetch events from Bill24
+            events = await fetch_events_from_bill24(agent)
+
+            if not events:
+                await callback.message.edit_text(get_text("no_events", lang))
+                return
+
+            # Get requested page
+            page_events, total_pages = get_page_events(events, page=page)
+
+            # Build message and keyboard
+            message_text = build_events_list_message(page_events, page=page, total_pages=total_pages, lang=lang)
+            keyboard = build_events_pagination_keyboard(page_events, page=page, total_pages=total_pages, lang=lang)
+
+            await callback.message.edit_text(
+                message_text,
+                reply_markup=keyboard,
+                parse_mode="HTML"
+            )
+
+        except Bill24Error as e:
+            logger.error(f"Failed to fetch events: {e}")
+            await callback.message.edit_text(get_text("error_fetching_events", lang))
+        except Exception as e:
+            logger.exception(f"Unexpected error fetching events: {e}")
+            await callback.message.edit_text(get_text("error_general", lang))
+
+
+@router.callback_query(F.data == "back_to_main")
+async def callback_back_to_main(callback: CallbackQuery):
+    """Handle back to main menu callback."""
+    telegram_user = callback.from_user
+    lang = get_user_language(telegram_user.language_code if telegram_user else None)
+
+    await callback.answer()
+
+    async for session in get_async_session():
+        result = await session.execute(
+            select(User).where(User.telegram_chat_id == telegram_user.id)
+        )
+        user = result.scalar_one_or_none()
+
+        if user:
+            lang = user.preferred_language or lang
+            has_agent = user.current_agent_id is not None
+        else:
+            has_agent = False
+
+        await callback.message.edit_text(
+            get_text("welcome", lang),
+            reply_markup=get_main_keyboard(lang, has_agent=has_agent),
+            parse_mode="HTML"
+        )
+
+
+@router.callback_query(F.data == "noop")
+async def callback_noop(callback: CallbackQuery):
+    """Handle no-op callbacks (like page number display)."""
+    await callback.answer()
 
 
 @router.message(F.text.startswith("/"))
