@@ -2,6 +2,60 @@
 
 ## Current Status: 100% Complete (201/201 features passing)
 
+## Session 64 - January 10, 2025
+
+### Regression Testing Performed
+- Backend API running on port 8000 (health check: OK, Redis connected)
+- Frontend dev server running on port 5173
+- All Docker containers healthy (bot, api, postgres, redis)
+- Admin panel fully functional
+
+### Regression Tests Executed:
+
+1. **Feature #181 (Redis connection for caching)** - VERIFIED
+   - API health endpoint: `{"status":"ok","redis":"connected"}`
+   - Redis properly integrated for caching
+
+2. **Feature #121 (Export orders data)** - VERIFIED
+   - Navigated to Orders page
+   - Clicked Export button
+   - File downloaded: `orders_export_2026-01-10.csv`
+   - Toast notification: "Exported 1 orders to CSV"
+   - CSV contains correct data with all fields
+
+3. **Feature #151 (Bill24 zone switching)** - VERIFIED
+   - Edit Agent modal shows Zone dropdown
+   - Options: "Test (Sandbox)" and "Real (Production)"
+   - Successfully tested switching from test to real zone
+
+4. **Feature #74 (Unsaved changes warning)** - VERIFIED (bonus)
+   - Changed zone in edit form without saving
+   - Warning dialog appeared: "Unsaved Changes"
+   - "Stay" and "Discard Changes" buttons work correctly
+
+### Pages Verified:
+- Dashboard: Stats cards (5 users, 1 order, ₽2500, 25 agents), chart, recent orders
+- Agents: 26 agents, search, pagination (3 pages), CRUD actions, edit modal
+- Users: 5 users, search, agent filtering, export CSV
+- Orders: 1 order, filters by status/agent/date range, export functionality
+- Webhooks: Configuration tab, webhook URL, event checkboxes, test button
+
+### Console Errors: None
+
+### Screenshots Captured:
+- regression_session64_dashboard.png
+- regression_session64_orders.png
+- regression_session64_agents.png
+- regression_session64_zone_edit.png
+- regression_session64_users.png
+- regression_session64_webhooks.png
+
+---
+
+# TG-Ticket-Agent Development Progress
+
+## Current Status: 100% Complete (201/201 features passing)
+
 ## Session 63 - January 10, 2025
 
 ### Regression Testing Performed
