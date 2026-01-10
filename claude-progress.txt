@@ -2,6 +2,40 @@
 
 ## Current Status: 100% Complete (201/201 features passing)
 
+## Session 76 - January 10, 2026
+
+### Regression Testing Performed
+- Backend API running on port 8000 (healthy)
+- Frontend dev server running on port 5173
+- All services operational
+
+### Regression Tests Executed:
+
+1. **Dashboard Page** - VERIFIED
+   - Stats cards displaying correctly (Users: 5, Orders: 1, Revenue: P2500, Agents: 26)
+   - Recent Orders table and Sales Overview chart working
+
+2. **Feature #77 (Direct URL access to entity)** - VERIFIED
+   - Direct navigation to /agents/3 working correctly
+   - Agent details displayed: "Deep Link Test Agent Updated"
+
+3. **Orders Page** - VERIFIED
+   - Order list with filtering, order details with tickets
+
+4. **Users Page** - VERIFIED
+   - 5 users displayed with search and agent filter
+
+### Console Errors: None
+
+### Screenshots Captured:
+- regression_dashboard.png
+- regression_deep_link_agent.png
+- regression_orders.png
+- regression_order_details.png
+- regression_users.png
+
+---
+
 ## Session 75 - January 10, 2026
 
 ### Regression Testing Performed
