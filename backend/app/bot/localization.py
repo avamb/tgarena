@@ -31,7 +31,15 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         # Events
         "no_events": "К сожалению, мероприятий пока нет.",
         "events_list_title": "📋 <b>Доступные мероприятия</b>\n\nСтраница {page} из {total_pages}:",
-        "event_details": "<b>{name}</b>\n\n📅 Дата: {date}\n📍 Место: {venue}\n💰 Цена: от {min_price} до {max_price} ₽\n{age_restriction}",
+        "event_details": "<b>{name}</b>\n\n📅 Дата: {date}\n📍 Место: {venue}\n💰 Цена: от {min_price} до {max_price} ₽\n{age_restriction}{countdown}",
+
+        # Countdown
+        "countdown_label": "\n⏳ До начала: {countdown}",
+        "countdown_days": "{count} дн.",
+        "countdown_hours": "{count} ч.",
+        "countdown_minutes": "{count} мин.",
+        "countdown_started": "Уже началось!",
+        "countdown_starting_soon": "Скоро начало!",
         "event_list_item": "{number}. <b>{name}</b>\n   📅 {date} | 💰 от {min_price} ₽",
         "btn_page_prev": "⬅️ Назад",
         "btn_page_next": "➡️ Вперед",
@@ -94,7 +102,15 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         # Events
         "no_events": "Sorry, there are no events available at the moment.",
         "events_list_title": "📋 <b>Available Events</b>\n\nPage {page} of {total_pages}:",
-        "event_details": "<b>{name}</b>\n\n📅 Date: {date}\n📍 Venue: {venue}\n💰 Price: {min_price} - {max_price} ₽\n{age_restriction}",
+        "event_details": "<b>{name}</b>\n\n📅 Date: {date}\n📍 Venue: {venue}\n💰 Price: {min_price} - {max_price} ₽\n{age_restriction}{countdown}",
+
+        # Countdown
+        "countdown_label": "\n⏳ Starts in: {countdown}",
+        "countdown_days": "{count}d",
+        "countdown_hours": "{count}h",
+        "countdown_minutes": "{count}m",
+        "countdown_started": "Started!",
+        "countdown_starting_soon": "Starting soon!",
         "event_list_item": "{number}. <b>{name}</b>\n   📅 {date} | 💰 from {min_price} ₽",
         "btn_page_prev": "⬅️ Previous",
         "btn_page_next": "➡️ Next",

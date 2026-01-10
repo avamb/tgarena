@@ -7,7 +7,7 @@ Contains all message and callback handlers for the bot.
 import logging
 import math
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any, Tuple
 
 from aiogram import Router, F
@@ -164,6 +164,63 @@ def format_event_date(date_str: str) -> str:
         return dt.strftime("%d.%m.%Y %H:%M")
     except (ValueError, AttributeError):
         return date_str
+
+
+def calculate_countdown(event_date_str: str, lang: str = "ru") -> str:
+    """
+    Calculate countdown to event start.
+
+    Args:
+        event_date_str: ISO format event date string
+        lang: Language code for text formatting
+
+    Returns:
+        Human-readable countdown string (e.g., "2 дня 5 часов")
+        or empty string if event already started or date invalid
+    """
+    if not event_date_str:
+        return ""
+
+    try:
+        # Parse event date
+        event_dt = datetime.fromisoformat(event_date_str.replace("Z", "+00:00"))
+
+        # Make sure we have a timezone-aware datetime for comparison
+        if event_dt.tzinfo is None:
+            event_dt = event_dt.replace(tzinfo=timezone.utc)
+
+        now = datetime.now(timezone.utc)
+        delta = event_dt - now
+
+        # Event already started or passed
+        if delta.total_seconds() <= 0:
+            return get_text("countdown_started", lang)
+
+        total_seconds = int(delta.total_seconds())
+        days = total_seconds // 86400
+        hours = (total_seconds % 86400) // 3600
+        minutes = (total_seconds % 3600) // 60
+
+        # Build countdown parts
+        parts = []
+
+        if days > 0:
+            parts.append(get_text("countdown_days", lang, count=days))
+
+        if hours > 0 or days > 0:
+            parts.append(get_text("countdown_hours", lang, count=hours))
+
+        # Only show minutes if less than 1 day
+        if days == 0 and minutes > 0:
+            parts.append(get_text("countdown_minutes", lang, count=minutes))
+
+        if not parts:
+            return get_text("countdown_starting_soon", lang)
+
+        return " ".join(parts)
+
+    except (ValueError, AttributeError, TypeError):
+        return ""
 
 
 def build_events_list_message(
@@ -528,13 +585,20 @@ async def callback_events_page(callback: CallbackQuery):
 def build_event_details_message(event: Dict[str, Any], lang: str) -> str:
     """Build formatted message for event details."""
     event_name = event.get("fullActionName", event.get("actionName", "Unknown"))
-    event_date = format_event_date(event.get("actionDate", ""))
+    event_date_str = event.get("actionDate", "")
+    event_date = format_event_date(event_date_str)
     venue = event.get("venueName", event.get("cityName", "TBD"))
     min_price = event.get("minPrice", 0)
     max_price = event.get("maxPrice", min_price)
     age_restriction = event.get("ageRestriction", 0)
 
     age_text = get_age_restriction_text(age_restriction, lang)
+
+    # Calculate countdown to event start
+    countdown = calculate_countdown(event_date_str, lang)
+    countdown_text = ""
+    if countdown:
+        countdown_text = get_text("countdown_label", lang, countdown=countdown)
 
     return get_text(
         "event_details",
@@ -544,7 +608,8 @@ def build_event_details_message(event: Dict[str, Any], lang: str) -> str:
         venue=venue,
         min_price=min_price,
         max_price=max_price,
-        age_restriction=age_text
+        age_restriction=age_text,
+        countdown=countdown_text
     )
 
 
