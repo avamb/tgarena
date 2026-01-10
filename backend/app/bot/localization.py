@@ -53,6 +53,7 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         # Tickets
         "no_tickets": "У вас пока нет билетов.",
         "ticket_info": "🎫 <b>{event_name}</b>\n\n📅 {date}\n📍 {venue}\n🪑 {sector}, Ряд {row}, Место {seat}\n💰 {price} ₽",
+        "btn_share_ticket": "📤 Поделиться билетом",
 
         # Order status notifications
         "order_new": "📝 <b>Заказ #{order_id} создан</b>\n\nОжидаем оплаты...\nСумма: {amount} ₽",
@@ -124,6 +125,7 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         # Tickets
         "no_tickets": "You don't have any tickets yet.",
         "ticket_info": "🎫 <b>{event_name}</b>\n\n📅 {date}\n📍 {venue}\n🪑 {sector}, Row {row}, Seat {seat}\n💰 {price} ₽",
+        "btn_share_ticket": "📤 Share Ticket",
 
         # Order status notifications
         "order_new": "📝 <b>Order #{order_id} created</b>\n\nAwaiting payment...\nAmount: {amount} ₽",

@@ -6,6 +6,7 @@ Database models following the schema defined in app_spec.txt.
 
 from datetime import datetime
 from decimal import Decimal
+from enum import Enum
 from typing import Optional
 
 from sqlalchemy import (
@@ -25,6 +26,15 @@ try:
     from app.core.database import Base
 except ModuleNotFoundError:
     from backend.app.core.database import Base
+
+
+class OrderStatus(str, Enum):
+    """Order status enum."""
+    NEW = "NEW"
+    PROCESSING = "PROCESSING"
+    PAID = "PAID"
+    CANCELLED = "CANCELLED"
+    REFUNDED = "REFUNDED"
 
 
 class Agent(Base):
@@ -192,6 +202,7 @@ __all__ = [
     "User",
     "UserSession",
     "Order",
+    "OrderStatus",
     "Ticket",
     "AdminUser",
     "WebhookLog",

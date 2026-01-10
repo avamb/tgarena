@@ -125,7 +125,7 @@ async def process_ticket_delivery_job(
     """
     Background job to process ticket delivery.
 
-    Sends purchase confirmation and tickets to user via Telegram bot.
+    Sends purchase confirmation and individual tickets with QR codes to user via Telegram bot.
 
     Args:
         ctx: ARQ context
@@ -135,11 +135,15 @@ async def process_ticket_delivery_job(
     Returns:
         Result dictionary with delivery status
     """
+    import base64
+    from io import BytesIO
     from aiogram import Bot
+    from aiogram.types import BufferedInputFile, InlineKeyboardMarkup, InlineKeyboardButton
     from app.core.config import settings
     from app.core.database import async_session_maker
-    from app.models import Order, Agent, OrderItem
+    from app.models import Order, Agent, Ticket
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
 
     logger.info(f"Processing ticket delivery for order {order_id} to chat {user_chat_id}")
 
@@ -154,9 +158,9 @@ async def process_ticket_delivery_job(
 
     try:
         async with async_session_maker() as session:
-            # Get order details
+            # Get order details with tickets
             result = await session.execute(
-                select(Order).where(Order.id == order_id)
+                select(Order).options(selectinload(Order.tickets)).where(Order.id == order_id)
             )
             order = result.scalar_one_or_none()
 
@@ -188,8 +192,8 @@ async def process_ticket_delivery_job(
                     f"✅ <b>Покупка подтверждена!</b>\n\n"
                     f"Заказ #{order.id}\n"
                     f"Агент: {agent_name}\n"
-                    f"Сумма: {order.total_amount or 0} ₽\n\n"
-                    f"Ваши билеты будут отправлены ниже."
+                    f"Сумма: {order.total_sum or 0} ₽\n\n"
+                    f"Ваши билеты:"
                 )
 
                 await bot.send_message(
@@ -200,15 +204,76 @@ async def process_ticket_delivery_job(
 
                 logger.info(f"Sent confirmation for order {order_id} to chat {user_chat_id}")
 
-                # Mark order as having tickets delivered
-                order.tickets_delivered = True
+                # Send each ticket with QR code and barcode
+                tickets_sent = 0
+                for ticket in order.tickets:
+                    # Format ticket message
+                    ticket_message = (
+                        f"🎫 <b>{ticket.event_name}</b>\n\n"
+                        f"📅 {ticket.event_date.strftime('%d.%m.%Y %H:%M') if ticket.event_date else 'TBD'}\n"
+                        f"📍 {ticket.venue_name}\n"
+                        f"🪑 {ticket.sector or 'N/A'}, Ряд {ticket.row or '-'}, Место {ticket.seat or '-'}\n"
+                        f"💰 {ticket.price} ₽\n"
+                    )
+
+                    if ticket.barcode_number:
+                        ticket_message += f"\n🔢 Штрих-код: <code>{ticket.barcode_number}</code>"
+
+                    # Create share button keyboard
+                    # Using switch_inline_query_current_chat allows forwarding the message
+                    share_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(
+                            text="📤 Поделиться билетом",
+                            switch_inline_query=f"ticket_{ticket.id}"
+                        )]
+                    ])
+
+                    # Send QR code image if available
+                    if ticket.qr_code_data:
+                        try:
+                            # Decode base64 QR code
+                            qr_bytes = base64.b64decode(ticket.qr_code_data)
+                            qr_file = BufferedInputFile(qr_bytes, filename=f"qr_ticket_{ticket.id}.png")
+
+                            await bot.send_photo(
+                                chat_id=user_chat_id,
+                                photo=qr_file,
+                                caption=ticket_message,
+                                parse_mode="HTML",
+                                reply_markup=share_keyboard
+                            )
+                        except Exception as e:
+                            logger.warning(f"Failed to send QR code for ticket {ticket.id}: {e}")
+                            # Send text message without QR code
+                            await bot.send_message(
+                                chat_id=user_chat_id,
+                                text=ticket_message,
+                                parse_mode="HTML",
+                                reply_markup=share_keyboard
+                            )
+                    else:
+                        # No QR code, send text message
+                        await bot.send_message(
+                            chat_id=user_chat_id,
+                            text=ticket_message,
+                            parse_mode="HTML",
+                            reply_markup=share_keyboard
+                        )
+
+                    # Mark ticket as sent
+                    ticket.sent_to_user = True
+                    ticket.sent_at = datetime.utcnow()
+                    tickets_sent += 1
+
                 await session.commit()
+                logger.info(f"Sent {tickets_sent} tickets for order {order_id} to chat {user_chat_id}")
 
                 return {
                     "success": True,
                     "order_id": order_id,
                     "user_chat_id": user_chat_id,
-                    "message": "Purchase confirmation sent",
+                    "tickets_sent": tickets_sent,
+                    "message": f"Sent {tickets_sent} tickets",
                     "timestamp": datetime.utcnow().isoformat()
                 }
 

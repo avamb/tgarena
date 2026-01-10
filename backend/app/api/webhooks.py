@@ -210,23 +210,21 @@ async def payment_callback(
         )
 
     # Check if order is already in final state
-    if order.status in [OrderStatus.PAID, OrderStatus.REFUNDED]:
+    if order.status in [OrderStatus.PAID.value, OrderStatus.REFUNDED.value]:
         logger.warning(f"Order {callback.order_id} already in final state: {order.status}")
         return PaymentCallbackResponse(
             status="ignored",
             order_id=callback.order_id,
-            message=f"Order already in state: {order.status.value}"
+            message=f"Order already in state: {order.status}"
         )
 
     # Process based on callback status
     if callback.status == "success":
         # Update order status to PAID
-        order.status = OrderStatus.PAID
+        order.status = OrderStatus.PAID.value
         order.paid_at = datetime.utcnow()
 
-        if callback.transaction_id:
-            order.payment_id = callback.transaction_id
-
+        # Note: transaction_id stored in log but not in Order model
         await db.commit()
         logger.info(f"Order {callback.order_id} marked as PAID")
 
@@ -247,10 +245,10 @@ async def payment_callback(
         # Send webhook notification for order.paid event
         webhook_payload = {
             "order_id": order.id,
-            "bill24_order_id": order.bill24_order_id,
+            "bil24_order_id": order.bil24_order_id,
             "user_id": order.user_id,
             "agent_id": order.agent_id,
-            "total_amount": float(order.total_amount) if order.total_amount else 0,
+            "total_sum": float(order.total_sum) if order.total_sum else 0,
             "paid_at": order.paid_at.isoformat() if order.paid_at else None,
             "transaction_id": callback.transaction_id,
         }
@@ -269,7 +267,7 @@ async def payment_callback(
 
     elif callback.status == "failure":
         # Update order status to CANCELLED
-        order.status = OrderStatus.CANCELLED
+        order.status = OrderStatus.CANCELLED.value
         await db.commit()
         logger.info(f"Order {callback.order_id} cancelled due to payment failure")
 
