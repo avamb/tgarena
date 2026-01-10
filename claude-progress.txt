@@ -2,6 +2,53 @@
 
 ## Current Status: 100% Complete (201/201 features passing)
 
+## Session 50 - January 10, 2025
+
+### Regression Testing Performed
+- Backend API running on port 8000 (health check: OK, Redis connected)
+- Frontend dev server running on port 5173
+- All Docker containers healthy (bot, api, postgres, redis)
+- Admin panel fully functional
+
+### Regression Tests Executed:
+
+1. **Feature #4 (Unauthenticated user cannot access admin routes)** - PASSED
+   - Logged out of admin panel
+   - Navigated directly to /dashboard - redirected to /login
+   - Navigated directly to /agents - redirected to /login
+   - Navigated directly to /users - redirected to /login
+   - Security working correctly
+
+2. **Feature #165 (Data tables horizontally scrollable on mobile)** - PASSED
+   - Set viewport to mobile (375x667)
+   - Navigated to Agents page
+   - Table width: 796px, Container width: 335px
+   - isScrollable: true - horizontal scroll confirmed
+   - All data accessible via scrolling
+
+3. **Feature #115 (Created/updated timestamps accurate)** - PASSED
+   - Created new agent "TIMESTAMP_TEST_AGENT_SESSION50" (ID: 44)
+   - Verified created_at: 2026-01-10 06:34:50.56085
+   - Edited agent name to "TIMESTAMP_TEST_AGENT_SESSION50_UPDATED"
+   - Verified updated_at: 2026-01-10 06:35:41.575696 (changed correctly)
+   - Deleted test agent to clean up
+
+### Additional Verifications:
+- Agents page: 26 agents total, pagination working (Page 1 of 3)
+- XSS protection working (script tags displayed as text, not executed)
+- Long agent names truncated properly with ellipsis
+- Login flow working with correct credentials
+- Toast notifications displaying correctly
+
+### Console Errors: None
+### API Status: All endpoints responding correctly
+
+### Screenshots Captured:
+- regression-session50-mobile-table.png
+- regression-session50-agents-page.png
+
+---
+
 ## Session 49 - January 10, 2025
 
 ### Regression Testing Performed
