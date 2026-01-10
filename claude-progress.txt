@@ -2,6 +2,50 @@
 
 ## Current Status: 100% Complete (201/201 features passing)
 
+## Session 68 - January 10, 2025
+
+### Regression Testing Performed
+- Backend API running on port 8000 (health check: OK, Redis connected)
+- Frontend dev server running on port 5173
+- All navigation and functionality verified
+
+### Regression Tests Executed:
+
+1. **Feature #70 (Dropdown options from database)** - VERIFIED
+   - Created agent "TEST_DROPDOWN_AGENT" with FID 999888
+   - Navigated to Users page
+   - Opened agent filter dropdown
+   - Verified TEST_DROPDOWN_AGENT appeared in options
+   - Deleted test agent after verification
+
+2. **Feature #165 (Data tables horizontally scrollable)** - VERIFIED
+   - Set mobile viewport (375x667)
+   - Viewed agents table with many columns
+   - Verified horizontal scroll available (scrollWidth: 844px, clientWidth: 335px)
+   - Confirmed overflowX: auto on table container
+
+3. **Feature #170 (Export users as CSV)** - VERIFIED
+   - Navigated to Users page
+   - Clicked Export CSV button
+   - File downloaded: users-export-2026-01-10.csv
+   - Verified CSV format with correct headers and 5 users exported
+   - Status message: "Exported 5 users to CSV"
+
+### Pages Verified:
+- Dashboard: Stats cards (5 users, 1 order, ₽2500, 25 agents), chart, recent orders
+- Agents: 26 agents with search, pagination, CRUD operations
+- Users: 5 users with filtering, export CSV functionality
+
+### Console Errors: None
+
+### Screenshots Captured:
+- regression_session68_dashboard.png
+- regression_session68_dropdown_agent.png
+- regression_session68_mobile_table.png
+- regression_session68_users_export.png
+
+---
+
 ## Session 67 - January 10, 2025
 
 ### Regression Testing Performed
@@ -31,21 +75,6 @@
    - User details showed "Last Active: January 9, 2026 at 02:05 AM"
    - Timestamp tracking working correctly
 
-### Pages Verified:
-- Dashboard: Stats cards (5 users, 1 order, ₽2500, 25 agents), chart, recent orders
-- Agents: 26 agents listed with pagination
-- Users: 5 users with details view
-- Settings: General settings with persistence, password change, About section
-
-### Console Errors: None
-
-### Screenshots Captured:
-- regression_session67_dashboard.png
-- regression_session67_redirect_after_login.png
-- regression_session67_settings_before.png
-- regression_session67_settings_persisted.png
-- regression_session67_user_last_active.png
-
 ---
 
 ## Session 66 - January 10, 2025
@@ -58,54 +87,13 @@
 ### Regression Tests Executed:
 
 1. **Feature #196 (Admin panel shows correct version)** - VERIFIED
-   - Navigated to Settings page
-   - Found "About" section showing Version: 0.1.0, Environment: Development
-   - Version display confirmed working
-
 2. **Feature #152 (Agent zone only test or real)** - VERIFIED
-   - Clicked "Add Agent" button
-   - Zone field is a dropdown with only "Test (Sandbox)" and "Real (Production)" options
-   - No way to enter invalid zone values - validation enforced at UI level
-
 3. **Feature #64 (Network error handled gracefully)** - VERIFIED
-   - Checked console for errors - none found
-   - Verified error handling code exists in all page components
-   - Previous sessions confirmed error messages display correctly
-
-### Pages Verified:
-- Dashboard: Stats cards (5 users, 1 order, ₽2500, 25 agents), chart, recent orders
-- Agents: 26 agents, search, pagination (3 pages), Add Agent modal with zone validation
-- Users: 5 users, search, agent filtering, export CSV
-- Orders: 1 order, filters by status/agent/date range, export functionality
-- Settings: General settings, password change, About section with version info
-
-### Console Errors: None
-
-### Screenshots Captured:
-- regression_session66_dashboard.png
-- regression_session66_agents.png
-- regression_session66_users.png
-- regression_session66_orders.png
-
----
-
-## Session 65 - January 10, 2025
-
-### Regression Testing Performed
-- Backend API running on port 8000 (health check: OK, Redis connected)
-- Frontend dev server running on port 5173
-- All navigation and functionality verified
-
-### Regression Tests Executed:
-
-1. **Feature #138 (SQL injection prevention)** - VERIFIED
-2. **Feature #201 (Docker compose services)** - VERIFIED
-3. **Feature #31 (Navigate events with Next button)** - N/A (Telegram bot feature)
 
 ---
 
 ## Previous Sessions Summary
-- Sessions 1-65: Implemented all 201 features and verified through extensive regression testing
+- Sessions 1-67: Implemented all 201 features and verified through extensive regression testing
 - Full purchase flow working: browse -> select seats -> pay -> receive ticket
 - Admin panel complete with agents, users, orders management
 - Webhook configuration and logging implemented
