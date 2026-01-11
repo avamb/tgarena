@@ -11,11 +11,28 @@ services:
   # ---------------------------------------------------------------------------
   # Main Application Service (Bot + API)
   # ---------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # Database Migrations (one-shot service)
+  # ---------------------------------------------------------------------------
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - tg-ticket-network
+    restart: "no"
+
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: tg-ticket-agent-app
+    # NOTE: container_name removed to allow dev/prod to run side-by-side
     restart: unless-stopped
     ports:
       - "${PORT:-3000}:${PORT:-3000}"
@@ -33,6 +50,8 @@ services:
       - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL}
       - ENV=${ENV:-production}
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -51,7 +70,7 @@ services:
   # ---------------------------------------------------------------------------
   postgres:
     image: postgres:15-alpine
-    container_name: tg-ticket-agent-postgres
+    # NOTE: container_name removed to allow dev/prod to run side-by-side
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
@@ -72,7 +91,7 @@ services:
   # ---------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
-    container_name: tg-ticket-agent-redis
+    # NOTE: container_name removed to allow dev/prod to run side-by-side
     restart: unless-stopped
     command: redis-server --appendonly yes
     volumes:
