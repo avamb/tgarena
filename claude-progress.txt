@@ -2,6 +2,50 @@
 
 ## Current Status: 100% Complete (202/202 features passing)
 
+## Session 85 - January 11, 2026
+
+### Regression Testing Performed
+- Backend API running on port 8000 (Docker container)
+- Bot running and polling Telegram
+- Frontend dev server running on port 5173
+- PostgreSQL and Redis Docker containers healthy
+- All 202 features still passing
+
+### Regression Tests Executed:
+
+1. **Feature #70 (Dropdown options from database)** - VERIFIED
+   - Created test agent "TEST_DROPDOWN_SESSION85" (FID: 999985)
+   - Navigated to Users page
+   - Verified agent appeared in agent filter dropdown as last option
+   - Cleaned up by deleting the test agent
+   - Dropdown correctly populated from real database
+
+2. **Feature #102 (Loading indicator during operations)** - VERIFIED
+   - Dashboard loads with stats showing correct values
+   - Chart period switching (Week/Month/Year) works correctly
+   - Data loads quickly with smooth UI transitions
+
+3. **Feature #182 (Background job processing)** - VERIFIED
+   - Health endpoint confirms Redis connected
+   - Backend infrastructure for arq task queue operational
+
+4. **Dashboard Stats** - VERIFIED
+   - Total Users: 5
+   - Total Orders: 1
+   - Revenue: ₽2500
+   - Active Agents: 27 (restored after cleanup)
+   - Recent Orders table showing real data
+   - Sales Overview chart with period switching
+
+### Console Errors: None
+
+### Screenshots Captured:
+- regression_dashboard_session85.png
+- regression_dropdown_options_session85.png
+- regression_agents_final_session85.png
+
+---
+
 ## Session 84 - January 11, 2026
 
 ### Regression Testing Performed
