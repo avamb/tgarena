@@ -2,6 +2,60 @@
 
 ## Current Status: 100% Complete (202/202 features passing)
 
+## Session 87 - January 11, 2026
+
+### Regression Testing Performed
+- Backend API running on port 8000 (Docker container)
+- Bot running and polling Telegram (ArenaAppTestZone_bot)
+- Frontend dev server running on port 5179
+- PostgreSQL and Redis Docker containers healthy
+- All 202 features still passing
+
+### Regression Tests Executed:
+
+1. **Feature #19 (Filter orders by date range)** - VERIFIED
+   - Navigated to Orders page
+   - Set date range filter: 2026-01-01 to 2026-01-15
+   - Order #1 (Jan 9, 2026) correctly displayed
+   - URL updated with filter params (?from=2026-01-01&to=2026-01-15)
+   - Active filters badges shown
+   - "Clear Filters" button appeared and works
+   - Tested exclusion: date range 2025-12-01 to 2025-12-31 shows "No orders yet"
+
+2. **Feature #113 (Error messages announced)** - VERIFIED
+   - Opened Add Agent form
+   - HTML5 native validation triggers on empty submit
+   - Tested duplicate FID error (55555)
+   - Error toast appeared with role="status" attribute
+   - Toast message: "Agent with FID 55555 already exists"
+   - Screen reader accessible via status role
+
+3. **Feature #30 (Bot displays event carousel)** - VERIFIED
+   - Bot container running and polling
+   - Bot logs show: "Run polling for bot @ArenaAppTestZone_bot"
+   - Health endpoint confirms all services connected
+
+4. **Dashboard Stats** - VERIFIED
+   - Total Users: 5
+   - Total Orders: 1
+   - Revenue: ₽2500
+   - Active Agents: 26
+   - Recent Orders table showing real data
+   - Sales Overview chart working
+
+5. **API Health** - VERIFIED
+   - GET /api/health returns: {"status":"ok","version":"0.1.0","environment":"development","redis":"connected"}
+
+### Console Errors: None (only expected 400 from duplicate FID test)
+
+### Screenshots Captured:
+- regression_dashboard_session87.png
+- regression_orders_filter_session87.png
+- regression_form_validation_session87.png
+- regression_agents_final_session87.png
+
+---
+
 ## Session 85 - January 11, 2026
 
 ### Regression Testing Performed
