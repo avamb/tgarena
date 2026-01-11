@@ -2,6 +2,47 @@
 
 ## Current Status: 100% Complete (202/202 features passing)
 
+## Session 80 - January 11, 2026
+
+### Regression Testing Performed
+- Backend API running on port 8000 (Docker container)
+- Frontend dev server running on port 5173
+- PostgreSQL and Redis Docker containers healthy
+- All 202 features still passing
+
+### Regression Tests Executed:
+
+1. **Feature #87 (Clear filters button resets all)** - VERIFIED
+   - Navigated to Orders page
+   - Applied Status filter: "Cancelled"
+   - Applied Agent filter: "Deep Link Test Agent Updated"
+   - URL showed query params: `?status=CANCELLED&agent_id=3`
+   - Active filters indicator showed both filters
+   - Clicked "Clear Filters" button
+   - All filters reset to "All Statuses" and "All Agents"
+   - URL reset to `/orders` (no query params)
+   - All records displayed correctly
+
+2. **Users Page** - VERIFIED
+   - 5 users displayed correctly
+   - Columns: Chat ID, Username, Name, Agent, Language, Created
+   - Agent filter dropdown working
+   - Export CSV button available
+
+3. **Agents Page** - VERIFIED
+   - 27 agents total with pagination (Page 1 of 3)
+   - Action buttons (stats, edit, delete) visible
+   - Deep link copy buttons working
+   - XSS protection working (script tags displayed as text)
+   - Status badges (Active/Inactive) with proper color coding
+
+### Console Errors: None
+
+### Screenshots Captured:
+- regression_agents_session80.png
+
+---
+
 ## Session 79 - January 11, 2026
 
 ### Regression Testing Performed
