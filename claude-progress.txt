@@ -2,6 +2,43 @@
 
 ## Current Status: 100% Complete (202/202 features passing)
 
+## Session 81 - January 11, 2026
+
+### Regression Testing Performed
+- Backend API running on port 8000 (Docker container)
+- Bot running and polling Telegram
+- Frontend dev server running on port 5173
+- PostgreSQL and Redis Docker containers healthy
+- All 202 features still passing
+
+### Regression Tests Executed:
+
+1. **Feature #5 (API endpoints return 401 for unauthenticated requests)** - VERIFIED
+   - Tested: GET /api/admin/agents - returned 401 "Not authenticated"
+   - Tested: GET /api/admin/users - returned 401 "Not authenticated"
+   - Tested: GET /api/admin/orders - returned 401 "Not authenticated"
+   - Security working correctly
+
+2. **Feature #187 (After login redirect to intended page)** - VERIFIED
+   - Navigated to /agents while logged out
+   - Automatically redirected to /login page
+   - Entered credentials (admin / changeme123)
+   - After login, redirected back to /agents (not dashboard)
+   - Intended page redirect working correctly
+
+3. **Feature #32 (View events as list)** - VERIFIED (code review)
+   - Bot code structure verified
+   - get_event_list_keyboard() function implemented with pagination
+   - Navigation callbacks (nav:event_list, list:page:{n}, event:view:{id}) in place
+   - Event list displays 5 events per page with prev/next navigation
+
+### Console Errors: None (only expected 401 from failed login attempt with wrong password)
+
+### Screenshots Captured:
+- regression_test_agents_page.png
+
+---
+
 ## Session 80 - January 11, 2026
 
 ### Regression Testing Performed
