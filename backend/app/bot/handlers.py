@@ -79,22 +79,31 @@ async def get_agent_by_fid(session: AsyncSession, fid: int) -> Optional[Agent]:
     return result.scalar_one_or_none()
 
 
+async def get_agent_by_id(session: AsyncSession, agent_id: int) -> Optional[Agent]:
+    """Get agent by database ID (used for deep links)."""
+    result = await session.execute(
+        select(Agent).where(Agent.id == agent_id)
+    )
+    return result.scalar_one_or_none()
+
+
 def parse_deep_link(text: str) -> Optional[int]:
     """
-    Parse agent FID from deep link parameter.
+    Parse agent ID from deep link parameter.
 
-    Expected format: agent_12345 where 12345 is the FID.
+    Expected format: agent_12345 where 12345 is the agent database ID.
+    Note: Deep links use agent.id (NOT Bill24 FID) for identification.
 
     Args:
         text: Deep link parameter text
 
     Returns:
-        Agent FID or None if not valid
+        Agent ID or None if not valid
     """
     if not text:
         return None
 
-    # Match pattern: agent_<fid>
+    # Match pattern: agent_<id>
     match = re.match(r'^agent_(\d+)$', text.strip())
     if match:
         return int(match.group(1))
@@ -350,14 +359,17 @@ async def cmd_start(message: Message):
     Handle /start command with optional deep link.
 
     Deep link format: t.me/BotUsername?start=agent_12345
+
+    When user comes via agent deep link, automatically loads events using get_all_actions.
+    If API doesn't return events, displays a message that no events are found.
     """
     telegram_user = message.from_user
     lang = get_user_language(telegram_user.language_code if telegram_user else None)
 
-    # Parse deep link parameter
+    # Parse deep link parameter (contains agent.id, NOT fid)
     args = message.text.split(maxsplit=1)
     deep_link_param = args[1] if len(args) > 1 else None
-    agent_fid = parse_deep_link(deep_link_param) if deep_link_param else None
+    agent_id = parse_deep_link(deep_link_param) if deep_link_param else None
 
     async for session in get_async_session():
         # Get or create user
@@ -365,9 +377,9 @@ async def cmd_start(message: Message):
         lang = user.preferred_language or lang
 
         agent = None
-        if agent_fid:
-            # Try to find agent
-            agent = await get_agent_by_fid(session, agent_fid)
+        if agent_id:
+            # Try to find agent by ID (from deep link)
+            agent = await get_agent_by_id(session, agent_id)
 
             if agent is None:
                 await message.answer(
@@ -390,14 +402,112 @@ async def cmd_start(message: Message):
             # Send welcome message with agent
             await message.answer(
                 get_text("welcome_with_agent", lang, agent_name=agent.name),
-                reply_markup=get_main_keyboard(lang, has_agent=True)
+                parse_mode="HTML"
             )
+
+            # Automatically load events using get_all_actions
+            loading_msg = await message.answer(get_text("loading_events", lang))
+
+            try:
+                # Fetch events from Bill24 using get_all_actions
+                events = await fetch_events_from_bill24(agent)
+
+                if not events:
+                    # No events found - display message
+                    await loading_msg.edit_text(
+                        get_text("no_events", lang),
+                        reply_markup=get_main_keyboard(lang, has_agent=True)
+                    )
+                    return
+
+                # Get first page of events
+                page_events, total_pages = get_page_events(events, page=1)
+
+                # Build message and keyboard
+                message_text = build_events_list_message(page_events, page=1, total_pages=total_pages, lang=lang)
+                keyboard = build_events_pagination_keyboard(page_events, page=1, total_pages=total_pages, lang=lang)
+
+                await loading_msg.edit_text(
+                    message_text,
+                    reply_markup=keyboard,
+                    parse_mode="HTML"
+                )
+
+            except Bill24Error as e:
+                logger.error(f"Failed to fetch events on /start: {e}")
+                await loading_msg.edit_text(
+                    get_text("error_fetching_events", lang),
+                    reply_markup=get_main_keyboard(lang, has_agent=True)
+                )
+            except Exception as e:
+                logger.exception(f"Unexpected error fetching events on /start: {e}")
+                await loading_msg.edit_text(
+                    get_text("error_general", lang),
+                    reply_markup=get_main_keyboard(lang, has_agent=True)
+                )
         else:
-            # Send general welcome message
-            await message.answer(
-                get_text("welcome", lang),
-                reply_markup=get_main_keyboard(lang, has_agent=user.current_agent_id is not None)
-            )
+            # No agent in deep link - check if user has a current agent
+            if user.current_agent_id is not None:
+                # Get agent for the user
+                result = await session.execute(
+                    select(Agent).where(Agent.id == user.current_agent_id)
+                )
+                agent = result.scalar_one_or_none()
+
+                if agent and agent.is_active:
+                    # Send welcome and load events
+                    await message.answer(
+                        get_text("welcome_with_agent", lang, agent_name=agent.name),
+                        parse_mode="HTML"
+                    )
+
+                    # Automatically load events
+                    loading_msg = await message.answer(get_text("loading_events", lang))
+
+                    try:
+                        events = await fetch_events_from_bill24(agent)
+
+                        if not events:
+                            await loading_msg.edit_text(
+                                get_text("no_events", lang),
+                                reply_markup=get_main_keyboard(lang, has_agent=True)
+                            )
+                            return
+
+                        page_events, total_pages = get_page_events(events, page=1)
+                        message_text = build_events_list_message(page_events, page=1, total_pages=total_pages, lang=lang)
+                        keyboard = build_events_pagination_keyboard(page_events, page=1, total_pages=total_pages, lang=lang)
+
+                        await loading_msg.edit_text(
+                            message_text,
+                            reply_markup=keyboard,
+                            parse_mode="HTML"
+                        )
+
+                    except Bill24Error as e:
+                        logger.error(f"Failed to fetch events on /start (existing agent): {e}")
+                        await loading_msg.edit_text(
+                            get_text("error_fetching_events", lang),
+                            reply_markup=get_main_keyboard(lang, has_agent=True)
+                        )
+                    except Exception as e:
+                        logger.exception(f"Unexpected error fetching events on /start: {e}")
+                        await loading_msg.edit_text(
+                            get_text("error_general", lang),
+                            reply_markup=get_main_keyboard(lang, has_agent=True)
+                        )
+                else:
+                    # Agent no longer valid
+                    await message.answer(
+                        get_text("welcome", lang),
+                        reply_markup=get_main_keyboard(lang, has_agent=False)
+                    )
+            else:
+                # Send general welcome message (no agent)
+                await message.answer(
+                    get_text("welcome", lang),
+                    reply_markup=get_main_keyboard(lang, has_agent=False)
+                )
 
 
 @router.message(Command("help"))
