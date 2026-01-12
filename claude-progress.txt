@@ -2,7 +2,7 @@
 
 ## Current Status: 100% Complete (205/205 features passing)
 
-## Session 101 - January 12, 2026
+## Session 102 - January 12, 2026
 
 ### Regression Testing Performed
 - Backend API running on port 8000 (Docker container)
@@ -13,74 +13,63 @@
 
 ### Regression Tests Executed:
 
-1. **Feature #21 (Dashboard shows key statistics)** - VERIFIED
-   - Total Users: 5
-   - Total Orders: 1
-   - Revenue: ₽2500
-   - Active Agents: 1
-   - Recent Orders table showing Order #1 (John Doe, CANCELLED, ₽2,500, Jan 9, 2026)
-   - Sales Overview chart with Week/Month/Year toggle working
+1. **Feature #7 (Create new agent via admin panel)** - VERIFIED
+   - Navigated to Agents page
+   - Clicked "Add Agent" button - modal opened correctly
+   - Filled in: Name="REGRESSION_TEST_SESSION102", FID=102102, Token="test_token_session102"
+   - Zone set to "Test (Sandbox)", Active checkbox checked
+   - Clicked "Create Agent" - success toast appeared
+   - New agent (ID: 63) appeared in table with all fields
+   - Clicked on agent name - details page showed correctly
+   - Deep link displayed: https://t.me/YourBotUsername?start=agent_63
+   - Stats shown: Total Users: 0, Total Orders: 0, Revenue: 0
+   - Cleaned up: deleted test agent, confirmed deletion
 
-2. **Feature #25 (Test webhook endpoint)** - VERIFIED
-   - Navigated to Webhooks page
-   - Webhook URL configured: https://httpbin.org/post
-   - Enable Webhooks: checked
-   - User Registered and Order Paid events enabled
-   - Clicked "Test Webhook" button
-   - Success response: "Webhook Sent Successfully"
-   - Total attempts: 1, HTTP 200
-   - Toast notification confirmed success
+2. **Feature #72 (Frontend parses API responses correctly)** - VERIFIED
+   - All API calls returned 200 OK status
+   - GET /api/admin/agents?page=1&page_size=10 => 200 OK
+   - POST /api/admin/agents => 201 Created
+   - GET /api/admin/agents/63 => 200 OK
+   - DELETE /api/admin/agents/63 => 200 OK
+   - Frontend displayed all agent fields correctly
+   - No console errors detected
 
-3. **Feature #115 (Created/updated timestamps accurate)** - VERIFIED
-   - Created test agent "TIMESTAMP_TEST_SESSION101" (ID: 62, FID: 101101)
-   - Created timestamp showed "January 12, 2026" (today)
-   - Edited agent name to "TIMESTAMP_TEST_SESSION101_EDITED"
-   - Update successful - name changed in table
-   - API confirmed created_at: "2026-01-12T17:15:24.889476"
-   - Cleaned up: deleted test agent after verification
+3. **Feature #158 (Preferred language from Telegram)** - VERIFIED
+   - Navigated to Users page
+   - 5 users displayed with language preferences
+   - RU language users: Boris User, Alex Testing, Jane Smith
+   - EN language users: Anonymous, John Doe
+   - Language column shows RU/EN badges correctly
 
 ### API Health - VERIFIED
 - GET /api/health returns: {"status":"ok","version":"0.1.0","environment":"development","redis":"connected"}
 
 ### Bot Status - VERIFIED
 - Bot polling active for @ArenaAppTestZone_bot
-- Recent updates processed successfully (last update ID: 893062536)
-- Response times: 110-275ms
+- Updates processed successfully (latest: 893062536)
 
 ### Console Errors: None
 
 ### Screenshots Captured:
-- regression_dashboard_session101.png
-- regression_webhooks_session101.png
-- regression_webhook_test_session101.png
-- regression_timestamp_created_session101.png
-- regression_timestamp_updated_session101.png
-- regression_agents_final_session101.png
+- regression_dashboard_session102.png
+- regression_add_agent_modal_session102.png
+- regression_agent_created_session102.png
+- regression_agent_details_session102.png
+- regression_users_language_session102.png
 
 ---
 
-## Session 100 - January 12, 2026
-
-### Regression Testing Performed
-- Backend API running on port 8000 (Docker container)
-- Bot running and polling Telegram (ArenaAppTestZone_bot)
-- Frontend dev server running on port 5187
-- PostgreSQL and Redis Docker containers healthy
-- All 205 features still passing (100% complete)
-
----
-
-## Session 99 - January 12, 2026
+## Session 101 - January 12, 2026
 
 ### Regression Testing Performed
 - All services healthy
-- Tested: View user details (#16), View agent deep link (#10), Dashboard Stats
+- Tested: Dashboard stats (#21), Webhook test (#25), Timestamps (#115)
 - All 205 features still passing
 
 ---
 
 ## Previous Sessions Summary
-- Sessions 1-98: Implemented all 205 features
+- Sessions 1-100: Implemented all 205 features
 - Full purchase flow working
 - Admin panel complete
 - Telegram bot functional
