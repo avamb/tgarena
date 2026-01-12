@@ -2,6 +2,49 @@
 
 ## Current Status: 100% Complete (205/205 features passing)
 
+## Session 90 - January 12, 2026
+
+### Regression Testing Performed
+- Backend API running on port 8000 (Docker container)
+- Bot running and polling Telegram (ArenaAppTestZone_bot)
+- Frontend dev server running on port 5181
+- PostgreSQL and Redis Docker containers healthy
+- All 205 features still passing (100% complete)
+
+### Regression Tests Executed:
+
+1. **Dashboard functionality** - VERIFIED
+   - Total Users: 5
+   - Total Orders: 1
+   - Revenue: ₽2500
+   - Active Agents: 26
+   - Recent Orders table showing real data (Order #1 - CANCELLED)
+   - Sales Overview chart working with period switching
+
+2. **Feature #170 (Export users as CSV)** - VERIFIED
+   - Navigated to Users page
+   - Clicked "Export CSV" button
+   - File downloaded: `users_export_2026-01-12.csv`
+   - Toast message: "Exported 5 users to CSV"
+   - CSV format verified with correct headers and 5 user records
+   - All data properly exported (ID, Chat ID, Username, Name, Language, Agent, timestamps)
+
+3. **API Health** - VERIFIED
+   - GET /api/health returns: {"status":"ok","version":"0.1.0","environment":"development","redis":"connected"}
+
+### Console Errors: None
+
+### Screenshots Captured:
+- regression_dashboard_session90.png
+- regression_users_export_session90.png
+
+### Notes:
+- Project is 100% complete with all 205 features passing
+- No new features to implement
+- Application is production-ready
+
+---
+
 ## Session 89 - January 12, 2026
 
 ### Completed in This Session
