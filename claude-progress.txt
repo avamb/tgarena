@@ -2,6 +2,61 @@
 
 ## Current Status: 100% Complete (205/205 features passing)
 
+## Session 99 - January 12, 2026
+
+### Regression Testing Performed
+- Backend API running on port 8000 (Docker container)
+- Bot running and polling Telegram (ArenaAppTestZone_bot)
+- Frontend dev server running on port 5187
+- PostgreSQL and Redis Docker containers healthy
+- All 205 features still passing (100% complete)
+
+### Regression Tests Executed:
+
+1. **Feature #16 (View user details)** - VERIFIED
+   - Navigated to Users page
+   - Clicked on "John Doe" user row
+   - User details page displayed correctly at /users/1
+   - Telegram info shown: Chat ID: 123456789, Username: @john_doe
+   - Name: John Doe, Preferred Language: EN
+   - Joined/Last Active timestamps displayed
+   - Order History section available (showing "No orders yet")
+   - Back navigation and breadcrumbs working
+
+2. **Feature #10 (View agent deep link)** - VERIFIED
+   - Navigated to Agents page
+   - Clicked on "Deep Link Test Agent Updated" to view details
+   - Agent details page at /agents/3
+   - Deep link format correct: `https://t.me/YourBotUsername?start=agent_3`
+   - Copy button clicked - toast "Deep link copied!" displayed
+   - Agent stats visible: Total Users: 1, Total Orders: 1, Revenue: 0
+   - Bill24 FID: 55555, Zone: test, Status: Inactive
+
+3. **Dashboard Stats** - VERIFIED
+   - Total Users: 5
+   - Total Orders: 1
+   - Revenue: ₽2500
+   - Active Agents: 1
+   - Recent Orders table showing Order #1 (John Doe, CANCELLED, ₽2,500)
+   - Sales Overview chart with Week/Month/Year toggle working
+
+4. **Bot Status** - VERIFIED (via logs)
+   - Bot actively running and polling Telegram
+   - Latest update ID: 893062536
+   - Updates handled with ~110-275ms response times
+   - Bot container healthy
+
+### API Health - VERIFIED
+- GET /api/health returns: {"status":"ok","version":"0.1.0","environment":"development","redis":"connected"}
+
+### Console Errors: None
+
+### Screenshots Captured:
+- regression_agent_details_session99.png
+- regression_dashboard_session99.png
+
+---
+
 ## Session 98 - January 12, 2026
 
 ### Regression Testing Performed
