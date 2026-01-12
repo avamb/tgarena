@@ -1,6 +1,51 @@
 # TG-Ticket-Agent Development Progress
 
-## Current Status: 100% Complete (204/204 features passing)
+## Current Status: 100% Complete (205/205 features passing)
+
+## Session 89 - January 12, 2026
+
+### Completed in This Session
+
+1. **Feature #205 (Загрузка ивентов / Events Loading)** - IMPLEMENTED AND PASSED
+   - Modified /start command to automatically load events using get_all_actions
+   - Fixed deep link lookup bug: was using FID but should use agent.id
+   - Added get_agent_by_id function for proper deep link handling
+   - Events now load automatically when user comes via agent deep link
+   - If API returns no events, displays localized "no events" message
+   - Error handling added for Bill24 API failures
+   - Also handles users with existing agent sessions
+
+### Bug Fixes:
+- **Deep link lookup mismatch**: Deep links were generated with `agent.id` but the
+  handler was looking up by `Agent.fid`. Fixed by adding `get_agent_by_id()` function
+  and updating `parse_deep_link()` documentation.
+
+### Regression Tests Executed:
+
+1. **Feature #75 (Session state after browser refresh)** - VERIFIED
+   - Navigated to Agents page
+   - Refreshed browser (F5)
+   - Still logged in after refresh
+   - Still on same page with data loaded
+
+2. **Dashboard functionality** - VERIFIED
+   - Total Users: 5
+   - Total Orders: 1
+   - Revenue: ₽2500
+   - Active Agents: 26
+   - Recent Orders showing real data
+   - Sales Overview chart working
+
+3. **API Health** - VERIFIED
+   - GET /api/health returns: {"status":"ok","version":"0.1.0","environment":"development","redis":"connected"}
+
+### Screenshots Captured:
+- regression_session_persistence_session89.png
+- regression_dashboard_session89.png
+
+### Console Errors: None
+
+---
 
 ## Session 88 - January 11, 2026
 
