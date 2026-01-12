@@ -2,6 +2,65 @@
 
 ## Current Status: 100% Complete (205/205 features passing)
 
+## Session 95 - January 12, 2026
+
+### Regression Testing Performed
+- Backend API running on port 8000 (Docker container)
+- Bot running and polling Telegram (ArenaAppTestZone_bot)
+- Frontend dev server running on port 5185
+- PostgreSQL and Redis Docker containers healthy
+- All 205 features still passing (100% complete)
+
+### Regression Tests Executed:
+
+1. **Feature #87 (Clear filters button resets all)** - VERIFIED
+   - Navigated to Orders page
+   - Applied multiple filters: Status=CANCELLED, Agent=Deep Link Test Agent Updated
+   - URL updated with filter params (?status=CANCELLED&agent_id=3)
+   - "Active filters" badges displayed correctly
+   - Clicked "Clear Filters" button
+   - All filters reset to default values
+   - URL reset to /orders (no query params)
+   - "Clear Filters" button hidden after reset
+
+2. **Feature #109 (Focus ring visible on elements)** - VERIFIED
+   - Used Tab key to navigate through page elements
+   - Focus ring visible on search input (blue outline)
+   - Focus ring visible on dropdown elements
+   - Tab navigation working correctly through form elements
+   - Sufficient contrast for accessibility
+
+3. **Order Details Page** - VERIFIED
+   - Clicked on Order #1 from orders list
+   - Full order details displayed correctly
+   - Total Amount: 2 500,00 ₽
+   - Tickets: 2
+   - Customer: John Doe (clickable link)
+   - Agent: Deep Link Test Agent Updated (clickable link)
+   - Order Information section complete
+   - 2 tickets for "Test Concert Event" displayed with all details
+
+4. **Dashboard Stats** - VERIFIED
+   - Total Users: 5
+   - Total Orders: 1
+   - Revenue: ₽2500
+   - Active Agents: 1
+   - Recent Orders table showing Order #1 (CANCELLED)
+   - Sales Overview chart with Week/Month/Year toggle
+
+### API Health - VERIFIED
+- GET /api/health returns: {"status":"ok","version":"0.1.0","environment":"development","redis":"connected"}
+
+### Console Errors: None
+
+### Screenshots Captured:
+- regression_focus_ring_search.png
+- regression_focus_ring_dropdown.png
+- regression_order_details_session95.png
+- regression_dashboard_session95.png
+
+---
+
 ## Session 94 - January 12, 2026
 
 ### Regression Testing Performed
