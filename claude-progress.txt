@@ -2,35 +2,37 @@
 
 ## Current Status: 100% Complete (205/205 features passing)
 
-## Session 111 - January 12, 2026
+## Session 112 - January 12, 2026
 
 ### Regression Testing Performed
-- Backend API running on port 8000
+- Backend API running on port 8000 (Docker container)
 - Admin panel running on port 5173 (Vite dev server)
 - All 205 features still passing (100% complete)
 
 ### Regression Tests Executed:
 
-1. **Feature #136 (Bill24 credentials never exposed)** - VERIFIED
-   - Navigated to Agents page - token field NOT shown in table
-   - Viewed agent details page - token NOT displayed
-   - Tested API response directly - token excluded from JSON response
-   - API returns: id, name, fid, zone, is_active, created_at, deep_link (NO token)
-   - Security properly implemented
+1. **Feature #92 (Combined filters and search work)** - VERIFIED
+   - Navigated to Users page
+   - Applied agent filter: "Deep Link Test Agent Updated"
+   - Entered search term: "alex"
+   - Results correctly showed only Alex Testing who matches both criteria
+   - Screenshot captured: regression_combined_filters.png
 
-2. **Feature #182 (Background job processing)** - VERIFIED
-   - Redis connected (health check confirmed: {"redis":"connected"})
-   - Webhook logs show multiple processed jobs with status 200
-   - Triggered new test webhook - processed successfully
-   - "Webhook Sent Successfully" with "Attempt 1: Success (HTTP 200)"
-   - arq task queue working correctly
+2. **Feature #101 (Error message is specific)** - VERIFIED
+   - Opened "Add New Agent" form
+   - Submitted empty form
+   - Browser showed specific error "Please fill out this field" on Agent Name field
+   - Error points to exact field, not generic "Error occurred"
+   - Screenshot captured: regression_form_validation.png
 
-3. **Feature #41 (English language fallback)** - VERIFIED
-   - Locale files present: bot/locales/en.json and bot/locales/ru.json
-   - Both files contain complete translations (welcome, events, tickets, cart, order, payment, errors, help, buttons)
-   - Language detection implemented in get_user_lang() function
-   - Falls back to English for non-Russian Telegram users
-   - Handles language_code from Telegram user settings
+3. **Feature #24 (Configure webhook URL)** - VERIFIED
+   - Navigated to Webhooks page
+   - Updated webhook URL to https://httpbin.org/post?test=regression
+   - Selected events (User Registered, Order Paid)
+   - Clicked Save Configuration - "Configuration saved!" message appeared
+   - Refreshed page - configuration persisted in database
+   - Restored URL to original: https://httpbin.org/post
+   - Screenshot captured: regression_webhooks_config.png, regression_webhooks_saved.png
 
 ### Dashboard Verified:
 - Total Users: 5
@@ -39,18 +41,17 @@
 - Active Agents: 1
 - Recent Orders table displaying correctly
 - Sales Overview chart working
-- No console errors (except expected 401 from manual API test)
 
-### Console Errors: None (functional)
+### Console Errors: None
 
 ### API Health - VERIFIED
-- GET /api/health returns: status ok, redis connected, version 0.1.0
+- GET /api/health returns: {"status":"ok","version":"0.1.0","environment":"development","redis":"connected"}
 
 ---
 
 ## Previous Sessions Summary
 - Sessions 1-100: Implemented all 205 features
-- Sessions 101-111: Regression testing - all features passing
+- Sessions 101-112: Regression testing - all features passing
 - Full purchase flow working
 - Admin panel complete
 - Telegram bot functional
@@ -68,6 +69,6 @@
 - Webhook URL: https://httpbin.org/post
 
 ## Key Features Verified This Session:
-- Security: Bill24 tokens never exposed to frontend
-- Background Jobs: Redis + arq processing webhooks
-- Localization: English/Russian with automatic language detection
+- Combined filters and search functionality
+- Form validation with specific error messages
+- Webhook configuration persistence
