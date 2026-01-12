@@ -2,6 +2,71 @@
 
 ## Current Status: 100% Complete (205/205 features passing)
 
+## Session 93 - January 12, 2026
+
+### Regression Testing Performed
+- Backend API running on port 8000 (Docker container)
+- Bot running and polling Telegram (ArenaAppTestZone_bot)
+- Frontend dev server running on port 5173
+- PostgreSQL and Redis Docker containers healthy
+- All 205 features still passing (100% complete)
+
+### Regression Tests Executed:
+
+1. **Feature #23 (Dashboard shows sales chart)** - VERIFIED
+   - Sales chart rendered correctly
+   - Week view shows daily data
+   - Month view shows dates Dec 15 - Jan 12
+   - Year view shows monthly data (Feb - Jan)
+   - Period switching works smoothly
+
+2. **Dashboard Stats** - VERIFIED
+   - Total Users: 5
+   - Total Orders: 1
+   - Revenue: ₽2500
+   - Active Agents: 26
+   - Recent Orders table showing Order #1 (CANCELLED)
+
+3. **Agents Page** - VERIFIED
+   - 27 agents displayed across 3 pages
+   - Pagination working (Page 1 of 3)
+   - All action buttons available (View stats, Edit, Delete)
+   - Deep Link Copy buttons present
+
+4. **Orders Page** - VERIFIED
+   - 1 order displayed with correct data
+   - Order #1: Bill24 ID 123456789, John Doe, CANCELLED, ₽2,500
+   - Order details page shows 2 tickets for Test Concert Event
+
+5. **Users Page** - VERIFIED
+   - 5 users displayed with correct data
+   - Agent filter dropdown with all 27 agents
+   - Export CSV button available
+
+6. **Webhooks Page** - VERIFIED
+   - Configuration form working
+   - Webhook URL: https://httpbin.org/post
+   - Enable Webhooks checkbox checked
+   - User Registered and Order Paid events enabled
+
+### API Health - VERIFIED
+- GET /api/health returns: {"status":"ok","version":"0.1.0","environment":"development","redis":"connected"}
+
+### Bot Status - VERIFIED
+- Bot polling active for @ArenaAppTestZone_bot
+- Recent updates processed successfully (last update ID: 893062524)
+
+### Console Errors: None
+
+### Screenshots Captured:
+- regression_dashboard_session93.png
+- regression_dashboard_year_chart_session93.png
+- regression_order_details_session93.png
+- regression_users_session93.png
+- regression_webhooks_session93.png
+
+---
+
 ## Session 92 - January 12, 2026
 
 ### Regression Testing Performed
