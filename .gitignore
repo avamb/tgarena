@@ -105,3 +105,10 @@ features.db
 .agent.lock
 .claude_mcp.json
 .claude_settings.json
+
+# Playwright CLI temporary files
+.playwright-cli/
+.playwright-mcp/
+
+# Sensitive environment files
+.env.txt
