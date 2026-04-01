@@ -1,6 +1,35 @@
 # TG-Ticket-Agent Development Progress
 
-## Current Status: 100% Complete (205/205 features passing)
+## Current Status: Feature #1 complete (1/1 new features passing)
+
+## Session 119 - April 2026
+
+### Feature #1: Fix GET_ALL_ACTIONS — Agent 68 не выгружает список мероприятий
+**Status: PASSING**
+
+#### Root Causes Found:
+1. **Wrong date field**: Code used `event.get("actionDate")` but Bill24 API returns `firstEventDate` in dd.MM.yyyy format (not ISO). This caused events to show "TBD" for dates and broke sorting.
+2. **API URL outdated**: Used tixgear.com URLs; official BIL24 docs specify bil24.pro endpoints.
+3. **No caching**: `ENABLE_EVENT_CACHING=true` config flag existed but Redis caching was never wired into `fetch_events_from_bill24()`.
+
+#### Changes Made:
+- **backend/app/bot/handlers.py**: Fixed `actionDate` → `firstEventDate`, fixed date sorting for dd.MM.yyyy format, added Redis caching integration with TTL from config, improved `format_event_date()` and `calculate_countdown()` to handle dd.MM.yyyy
+- **backend/app/services/bill24.py**: Added debug logging for GET_ALL_ACTIONS response structure
+- **backend/app/core/config.py**: Updated default API URLs to bil24.pro
+- **.env.example, docker-compose.yml, docker-compose.dev.yml, init.sh**: Updated API URLs
+- **backend/tests/test_get_all_actions.py**: 9 integration tests with real API (all passing)
+
+#### Verification:
+- API returns 2 events for Agent 68 (fid=1311): wine party + Vine&Co event
+- Redis caching works (set/get/TTL/delete tested)
+- Date formatting correct: "01.11.2026" preserved, ISO dates converted
+- Countdown calculation works with dd.MM.yyyy format
+- Admin panel shows Agent 68 correctly (Active, FID 1311)
+- Zero JS console errors
+- No mock data patterns found in src/
+- All 9 integration tests pass
+
+---
 
 ## Session 118 - January 2025
 
