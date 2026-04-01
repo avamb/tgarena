@@ -1,6 +1,22 @@
 # TG-Ticket-Agent Development Progress
 
-## Current Status: Feature #1 complete (1/1 new features passing)
+## Current Status: Feature #1 complete (1/2 features passing)
+
+## Session 120 - April 2026
+
+### Re-verification of Feature #1: Fix GET_ALL_ACTIONS — Agent 68
+**Status: PASSING (confirmed)**
+
+- All 9 integration tests pass (pytest)
+- Admin panel verified via browser automation: Agent 68 (FID 1311) Active
+- Dashboard shows correct stats: 1 active agent, 5 users, 1 order
+- No JS console errors (only expected 401 from wrong password attempt)
+- No mock data patterns in production code
+- API URLs confirmed updated to bil24.pro
+- firstEventDate field used correctly (not actionDate)
+- Redis caching wired into fetch_events_from_bill24()
+
+---
 
 ## Session 119 - April 2026
 
