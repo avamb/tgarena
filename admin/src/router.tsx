@@ -12,6 +12,7 @@ import Orders from './pages/Orders'
 import OrderDetails from './pages/OrderDetails'
 import Webhooks from './pages/Webhooks'
 import Settings from './pages/Settings'
+import Logs from './pages/Logs'
 import NotFound from './pages/NotFound'
 
 // Components
@@ -82,6 +83,10 @@ export const router = createBrowserRouter([
       {
         path: 'settings',
         element: <Settings />,
+      },
+      {
+        path: 'logs',
+        element: <Logs />,
       },
     ],
   },

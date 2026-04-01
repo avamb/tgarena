@@ -1,17 +1,6 @@
+/* Layout with sidebar navigation - updated with Logs page */
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
-import {
-  LayoutDashboard,
-  Users,
-  Ticket,
-  ShoppingCart,
-  Webhook,
-  Settings,
-  LogOut,
-  Menu,
-  X,
-  ChevronRight,
-  Home,
-} from 'lucide-react'
+import { LayoutDashboard, Users, Ticket, ShoppingCart, Webhook, Settings, ScrollText, LogOut, Menu, X, ChevronRight, Home } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '../store/auth'
 
@@ -21,6 +10,7 @@ const navigation = [
   { name: 'Users', href: '/users', icon: Users },
   { name: 'Orders', href: '/orders', icon: ShoppingCart },
   { name: 'Webhooks', href: '/webhooks', icon: Webhook },
+  { name: 'Logs', href: '/logs', icon: ScrollText },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 
@@ -31,6 +21,7 @@ const routeNameMap: Record<string, string> = {
   users: 'Users',
   orders: 'Orders',
   webhooks: 'Webhooks',
+  logs: 'Logs',
   settings: 'Settings',
 }
 

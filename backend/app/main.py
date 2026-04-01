@@ -30,6 +30,17 @@ except ModuleNotFoundError:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator:
     """Application lifespan manager."""
+    # Configure structured logging
+    try:
+        from app.core.logging_config import setup_logging
+    except ModuleNotFoundError:
+        from backend.app.core.logging_config import setup_logging
+
+    setup_logging(
+        log_level=settings.LOG_LEVEL,
+        log_format=settings.LOG_FORMAT,
+    )
+
     # Startup
     await init_db()
     # Initialize Redis connection

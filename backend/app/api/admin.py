@@ -1180,3 +1180,117 @@ async def get_job_status_endpoint(
         status=status,
         result=result,
     )
+
+
+# =============================================================================
+# Logs Endpoints
+# =============================================================================
+
+
+class LogEntry(BaseModel):
+    timestamp: str
+    level: str
+    logger: str
+    message: str
+    module: Optional[str] = None
+    function: Optional[str] = None
+    line: Optional[int] = None
+    component: Optional[str] = None
+    exception: Optional[str] = None
+
+
+class LogsResponse(BaseModel):
+    logs: List[LogEntry]
+    total: int
+    filters: dict
+
+
+@admin_router.get("/logs")
+async def get_logs(
+    lines: int = 100,
+    level: Optional[str] = None,
+    component: Optional[str] = None,
+    search: Optional[str] = None,
+    current_user=Depends(get_current_admin_user),
+):
+    """
+    Get recent application logs with optional filtering.
+
+    Query params:
+        lines: Number of log entries to return (default 100, max 1000)
+        level: Filter by minimum log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        component: Filter by component (bot, api, bill24, system)
+        search: Search string to match in log messages
+    """
+    try:
+        from app.core.logging_config import get_log_entries
+    except ModuleNotFoundError:
+        from backend.app.core.logging_config import get_log_entries
+
+    # Clamp lines to reasonable range
+    lines = max(1, min(lines, 1000))
+
+    entries = get_log_entries(
+        lines=lines,
+        level=level,
+        component=component,
+        search=search,
+    )
+
+    return LogsResponse(
+        logs=[LogEntry(**entry) for entry in entries],
+        total=len(entries),
+        filters={
+            "lines": lines,
+            "level": level,
+            "component": component,
+            "search": search,
+        },
+    )
+
+
+@admin_router.get("/logs/stream")
+async def stream_logs(
+    current_user=Depends(get_current_admin_user),
+):
+    """
+    Stream logs in real-time via Server-Sent Events (SSE).
+
+    Returns new log entries as they appear.
+    """
+    import asyncio
+    from starlette.responses import StreamingResponse
+
+    try:
+        from app.core.logging_config import get_log_entries
+    except ModuleNotFoundError:
+        from backend.app.core.logging_config import get_log_entries
+
+    async def event_generator():
+        last_timestamp = None
+        while True:
+            entries = get_log_entries(lines=50)
+
+            new_entries = []
+            for entry in entries:
+                if last_timestamp and entry["timestamp"] <= last_timestamp:
+                    break
+                new_entries.append(entry)
+
+            if new_entries:
+                last_timestamp = new_entries[0]["timestamp"]
+                for entry in reversed(new_entries):
+                    yield f"data: {json.dumps(entry, ensure_ascii=False)}\n\n"
+
+            await asyncio.sleep(2)
+
+    import json
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

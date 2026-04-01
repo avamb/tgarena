@@ -12,6 +12,7 @@ import Orders from './pages/Orders'
 import OrderDetails from './pages/OrderDetails'
 import Webhooks from './pages/Webhooks'
 import Settings from './pages/Settings'
+import Logs from './pages/Logs'
 import NotFound from './pages/NotFound'
 
 // Components
@@ -52,6 +53,7 @@ function App() {
         <Route path="orders/:id" element={<OrderDetails />} />
         <Route path="webhooks" element={<Webhooks />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="logs" element={<Logs />} />
       </Route>
 
       {/* 404 */}
