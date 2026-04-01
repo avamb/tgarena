@@ -1,8 +1,33 @@
 # TG-Ticket-Agent Development Progress
 
-## Current Status: Feature #1 complete (1/2 features passing)
+## Current Status: Features #1-#2 complete (2/2 features passing)
 
 ## Session 120 - April 2026
+
+### Feature #2: Global error handling middleware и graceful fallback для бота
+**Status: PASSING**
+
+#### Changes Made:
+- **bot/middlewares/__init__.py**: Added `ErrorHandlingMiddleware` as outermost middleware - catches all unhandled exceptions in handlers, sends user-friendly fallback message, logs errors with full context (user_id, handler, traceback)
+- **bot/main.py**: Added `check_infrastructure_health()` - checks PostgreSQL (SELECT 1) and Redis (PING) before starting polling, fails with clear error if PostgreSQL unavailable
+- **backend/app/bot/middleware.py**: Mirror middleware for the backend bot module (used by runner.py entry point)
+- **backend/app/bot/bot.py**: Registered ErrorHandlingMiddleware on dispatcher
+- **backend/app/bot/runner.py**: Added startup health checks for PostgreSQL and Redis
+- **backend/app/bot/__init__.py**: Exported ErrorHandlingMiddleware
+- **backend/tests/test_error_handling_middleware.py**: 11 unit tests - all passing
+
+#### Verification:
+- Bot startup logs show: ✓ PostgreSQL health check: OK, ✓ Redis health check: OK
+- Middleware registered: "Bot middlewares registered (including error handling)"
+- 11 unit tests pass: DB unavailability → fallback message, Bill24 API error → fallback message, callback query errors handled, logging with context verified, send failure doesn't crash
+- No mock data patterns found in src/
+- API health check still returns OK
+- Admin panel still serving correctly
+- Zero console errors
+
+---
+
+## Session 119 - April 2026
 
 ### Re-verification of Feature #1: Fix GET_ALL_ACTIONS — Agent 68
 **Status: PASSING (confirmed)**
