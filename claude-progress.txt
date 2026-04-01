@@ -1,6 +1,28 @@
 # TG-Ticket-Agent Development Progress
 
-## Current Status: Features #1-#2 complete (2/2 features passing)
+## Current Status: 5/7 features passing (71.4%)
+
+## Session 121 - April 2026
+
+### Feature #5: Add bot service to production docker-compose and fix Get All Actions
+**Status: PASSING**
+
+#### Changes Made:
+- **docker-compose.yml**: Added separate `bot` service with `command: python -m backend.app.bot.runner`
+- Configured all necessary env vars: DATABASE_URL, REDIS_URL, TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_URL, BILL24_TEST_URL, BILL24_REAL_URL, BILL24_DEFAULT_ZONE, ENV
+- Added depends_on: postgres (healthy), redis (healthy), migrate (completed), app (started)
+- Added restart: unless-stopped and connected to tg-ticket-network
+- Updated header comment to reflect separate services architecture
+
+#### Verification:
+- Docker compose config validates successfully (no errors)
+- All env vars resolve correctly including BILL24 URLs (bil24.pro)
+- API health check confirmed working (status: ok, redis: connected)
+- Admin panel loading correctly on port 5173
+- No mock data patterns found
+- Zero console errors
+
+---
 
 ## Session 120 - April 2026
 
