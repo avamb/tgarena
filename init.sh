@@ -123,8 +123,8 @@ TELEGRAM_BOT_TOKEN=your_bot_token_here
 TELEGRAM_WEBHOOK_URL=https://your-domain.com/api/webhooks/telegram
 
 # Bill24 API
-BILL24_TEST_URL=https://api.tixgear.com:1240/json
-BILL24_REAL_URL=https://api.tixgear.com/json
+BILL24_TEST_URL=https://api.bil24.pro:8443/json
+BILL24_REAL_URL=https://api.bil24.pro/json
 BILL24_DEFAULT_ZONE=test
 
 # Admin Panel

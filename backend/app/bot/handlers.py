@@ -141,12 +141,26 @@ async def fetch_events_from_bill24(agent: Agent) -> List[Dict[str, Any]]:
     """
     Fetch events from Bill24 API for a given agent.
 
+    Uses Redis caching when ENABLE_EVENT_CACHING is true to avoid
+    hitting the API on every request. Cache key: agent_{agent.id}.
+
     Args:
         agent: Agent model with Bill24 credentials
 
     Returns:
         List of event dictionaries
     """
+    from app.core.config import settings as app_settings
+    from app.core.redis_client import event_cache
+
+    # Check cache first (if caching is enabled)
+    if app_settings.ENABLE_EVENT_CACHING:
+        cache_key = f"agent_{agent.id}"
+        cached_events = await event_cache.get(cache_key)
+        if cached_events is not None:
+            logger.info(f"Events cache HIT for agent {agent.id} (fid={agent.fid}): {len(cached_events)} events")
+            return cached_events
+
     client = Bill24Client(
         fid=agent.fid,
         token=agent.token,
@@ -157,23 +171,59 @@ async def fetch_events_from_bill24(agent: Agent) -> List[Dict[str, Any]]:
         response = await client.get_all_actions()
         events = response.get("actionList", [])
 
-        # Sort events by date
-        events.sort(key=lambda x: x.get("actionDate", ""))
+        logger.info(
+            f"Fetched {len(events)} events from Bill24 for agent {agent.id} "
+            f"(fid={agent.fid}, zone={agent.zone})"
+        )
+
+        # Sort events by firstEventDate (format: dd.MM.yyyy)
+        # Parse to comparable format for proper date sorting
+        def sort_key(event):
+            date_str = event.get("firstEventDate", "")
+            try:
+                # Convert dd.MM.yyyy to yyyy.MM.dd for string comparison
+                parts = date_str.split(".")
+                if len(parts) == 3:
+                    return f"{parts[2]}.{parts[1]}.{parts[0]}"
+            except (ValueError, IndexError):
+                pass
+            return ""
+
+        events.sort(key=sort_key)
+
+        # Store in cache if caching is enabled
+        if app_settings.ENABLE_EVENT_CACHING:
+            cache_key = f"agent_{agent.id}"
+            await event_cache.set(cache_key, events, ttl=app_settings.EVENT_CACHE_TTL)
+            logger.info(f"Events cached for agent {agent.id} (TTL={app_settings.EVENT_CACHE_TTL}s)")
 
         return events
     except Bill24Error as e:
-        logger.error(f"Bill24 API error fetching events: {e}")
+        logger.error(f"Bill24 API error fetching events for agent {agent.id} (fid={agent.fid}): {e}")
         raise
     finally:
         await client.close()
 
 
 def format_event_date(date_str: str) -> str:
-    """Format event date for display."""
+    """
+    Format event date for display.
+
+    Bill24 API returns dates in multiple formats:
+    - firstEventDate/lastEventDate: "dd.MM.yyyy" (e.g., "01.11.2026")
+    - sellEndTime: ISO-8601 (e.g., "2026-11-01T18:00:00Z")
+    - actionEventList[].day: "dd.MM.yyyy"
+    - actionEventList[].time: "HH:mm"
+    """
     if not date_str:
         return "TBD"
+
+    # Already in dd.MM.yyyy format from Bill24 — return as-is
+    if len(date_str) == 10 and date_str[2] == "." and date_str[5] == ".":
+        return date_str
+
     try:
-        # Bill24 typically returns ISO format or similar
+        # Try ISO format (for sellEndTime and similar fields)
         dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
         return dt.strftime("%d.%m.%Y %H:%M")
     except (ValueError, AttributeError):
@@ -196,8 +246,13 @@ def calculate_countdown(event_date_str: str, lang: str = "ru") -> str:
         return ""
 
     try:
-        # Parse event date
-        event_dt = datetime.fromisoformat(event_date_str.replace("Z", "+00:00"))
+        # Parse event date - handle both dd.MM.yyyy and ISO formats
+        if len(event_date_str) == 10 and event_date_str[2] == "." and event_date_str[5] == ".":
+            # Bill24 format: dd.MM.yyyy
+            event_dt = datetime.strptime(event_date_str, "%d.%m.%Y").replace(tzinfo=timezone.utc)
+        else:
+            # ISO format
+            event_dt = datetime.fromisoformat(event_date_str.replace("Z", "+00:00"))
 
         # Make sure we have a timezone-aware datetime for comparison
         if event_dt.tzinfo is None:
@@ -252,7 +307,7 @@ def build_events_list_message(
 
     for i, event in enumerate(events, start=1):
         event_name = event.get("fullActionName", event.get("actionName", "Unknown"))
-        event_date = format_event_date(event.get("actionDate", ""))
+        event_date = format_event_date(event.get("firstEventDate", ""))
         min_price = event.get("minPrice", 0)
 
         # Calculate global event number on this page
@@ -700,12 +755,12 @@ async def callback_events_page(callback: CallbackQuery):
 def build_event_details_message(event: Dict[str, Any], lang: str) -> str:
     """Build formatted message for event details."""
     event_name = event.get("fullActionName", event.get("actionName", "Unknown"))
-    event_date_str = event.get("actionDate", "")
+    event_date_str = event.get("firstEventDate", "")
     event_date = format_event_date(event_date_str)
     venue = event.get("venueName", event.get("cityName", "TBD"))
     min_price = event.get("minPrice", 0)
     max_price = event.get("maxPrice", min_price)
-    age_restriction = event.get("ageRestriction", 0)
+    age_restriction = event.get("age", event.get("ageRestriction", 0))
 
     age_text = get_age_restriction_text(age_restriction, lang)
 

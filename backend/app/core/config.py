@@ -30,8 +30,12 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_USERNAME: Optional[str] = None
 
     # Bill24 API
-    BILL24_TEST_URL: str = "https://api.tixgear.com:1240/json"
-    BILL24_REAL_URL: str = "https://api.tixgear.com/json"
+    # Official endpoints per BIL24 protocol docs (v25.07.2025):
+    #   Test: https://api.bil24.pro:8443/json (backup: https://api2.bil24.pro:8443/json)
+    #   Real: https://api.bil24.pro/json
+    # Legacy tixgear.com endpoints also work but bil24.pro is recommended.
+    BILL24_TEST_URL: str = "https://api.bil24.pro:8443/json"
+    BILL24_REAL_URL: str = "https://api.bil24.pro/json"
     BILL24_DEFAULT_ZONE: str = "test"
 
     # Admin Authentication

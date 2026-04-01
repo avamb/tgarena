@@ -210,8 +210,29 @@ class Bill24Client:
         Get all events with full details.
 
         Returns complete event data for local caching.
+        The response contains: countryList, cityList, kindList, genreList, actionList.
+        Each event in actionList has: actionId, fullActionName, firstEventDate (dd.MM.yyyy),
+        lastEventDate, minPrice, maxPrice, actionEventList, etc.
+        Note: There is no 'actionDate' field — use 'firstEventDate' instead.
         """
         response = await self._request("GET_ALL_ACTIONS")
+
+        # Debug: log response structure for diagnostics
+        action_list = response.get("actionList", [])
+        logger.info(
+            f"GET_ALL_ACTIONS: resultCode={response.get('resultCode')}, "
+            f"events_count={len(action_list)}, "
+            f"response_keys={list(response.keys())}"
+        )
+        if action_list:
+            sample = action_list[0]
+            logger.debug(
+                f"GET_ALL_ACTIONS sample event: actionId={sample.get('actionId')}, "
+                f"name={sample.get('fullActionName')}, "
+                f"firstEventDate={sample.get('firstEventDate')}, "
+                f"event_keys={list(sample.keys())}"
+            )
+
         return response
 
     async def get_actions_v2(

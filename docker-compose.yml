@@ -42,8 +42,8 @@ services:
       - REDIS_URL=${REDIS_URL}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_WEBHOOK_URL=${TELEGRAM_WEBHOOK_URL}
-      - BILL24_TEST_URL=${BILL24_TEST_URL:-https://api.tixgear.com:1240/json}
-      - BILL24_REAL_URL=${BILL24_REAL_URL:-https://api.tixgear.com/json}
+      - BILL24_TEST_URL=${BILL24_TEST_URL:-https://api.bil24.pro:8443/json}
+      - BILL24_REAL_URL=${BILL24_REAL_URL:-https://api.bil24.pro/json}
       - BILL24_DEFAULT_ZONE=${BILL24_DEFAULT_ZONE:-test}
       - ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET}
       - ADMIN_JWT_EXPIRES_IN=${ADMIN_JWT_EXPIRES_IN:-24h}
