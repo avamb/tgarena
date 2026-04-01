@@ -2,7 +2,7 @@
 # TG-Ticket-Agent Docker Compose - Production
 # =============================================================================
 # This is the main docker-compose.yml for Dokploy deployment
-# Single app service that runs the combined bot + API
+# Separate services for API (uvicorn) and Telegram bot (aiogram)
 # =============================================================================
 
 version: '3.8'
@@ -62,6 +62,36 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    networks:
+      - tg-ticket-network
+
+  # ---------------------------------------------------------------------------
+  # Telegram Bot (aiogram polling/webhook)
+  # ---------------------------------------------------------------------------
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["python", "-m", "backend.app.bot.runner"]
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_WEBHOOK_URL=${TELEGRAM_WEBHOOK_URL}
+      - BILL24_TEST_URL=${BILL24_TEST_URL:-https://api.bil24.pro:8443/json}
+      - BILL24_REAL_URL=${BILL24_REAL_URL:-https://api.bil24.pro/json}
+      - BILL24_DEFAULT_ZONE=${BILL24_DEFAULT_ZONE:-test}
+      - ENV=${ENV:-production}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_started
     networks:
       - tg-ticket-network
 
