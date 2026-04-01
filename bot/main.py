@@ -14,6 +14,10 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommand
 
+import redis.asyncio as redis
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import text
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -35,6 +39,48 @@ async def set_commands(bot: Bot):
     await bot.set_my_commands(commands)
 
 
+async def check_infrastructure_health():
+    """
+    Perform startup health checks on PostgreSQL and Redis.
+
+    Checks PostgreSQL (SELECT 1) and Redis (PING) before starting polling.
+    Logs status and fails with a clear error if critical services are unavailable.
+    """
+    database_url = getenv("DATABASE_URL", "")
+    redis_url = getenv("REDIS_URL", "redis://localhost:6379/0")
+
+    # Check PostgreSQL connectivity
+    if database_url:
+        async_url = database_url
+        if async_url.startswith("postgresql://"):
+            async_url = async_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+        try:
+            engine = create_async_engine(async_url, pool_pre_ping=True)
+            async with engine.connect() as conn:
+                result = await conn.execute(text("SELECT 1"))
+                result.fetchone()
+            await engine.dispose()
+            logger.info("✓ PostgreSQL health check: OK")
+        except Exception as e:
+            logger.critical(f"✗ PostgreSQL health check FAILED: {e}")
+            raise SystemExit(f"Cannot start bot: PostgreSQL is unavailable - {e}")
+    else:
+        logger.warning("⚠ DATABASE_URL not set - skipping PostgreSQL health check")
+
+    # Check Redis connectivity
+    try:
+        redis_client = await redis.from_url(redis_url, encoding="utf-8", decode_responses=True)
+        redis_ok = await redis_client.ping()
+        await redis_client.aclose()
+        if redis_ok:
+            logger.info("✓ Redis health check: OK")
+        else:
+            logger.warning("⚠ Redis health check: PING returned False (degraded mode)")
+    except Exception as e:
+        logger.warning(f"⚠ Redis health check: {e} (bot will run without caching)")
+
+
 async def main():
     """Main function to start the bot."""
     # Get token from environment
@@ -42,6 +88,9 @@ async def main():
     if not token:
         logger.error("TELEGRAM_BOT_TOKEN not set!")
         sys.exit(1)
+
+    # Perform infrastructure health checks before starting
+    await check_infrastructure_health()
 
     # Create bot instance
     bot = Bot(
@@ -57,7 +106,7 @@ async def main():
 
     register_handlers(dp)
 
-    # Register middlewares
+    # Register middlewares (includes global error handling)
     from bot.middlewares import register_middlewares
 
     register_middlewares(dp)

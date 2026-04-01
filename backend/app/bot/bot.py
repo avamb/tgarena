@@ -14,14 +14,20 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 try:
     from app.core.config import settings
+    from app.bot.middleware import ErrorHandlingMiddleware
 except ModuleNotFoundError:
     from backend.app.core.config import settings
+    from backend.app.bot.middleware import ErrorHandlingMiddleware
 
 logger = logging.getLogger(__name__)
 
 # Global bot and dispatcher instances
 _bot: Optional[Bot] = None
 dp = Dispatcher(storage=MemoryStorage())
+
+# Register global error-handling middleware
+dp.update.middleware(ErrorHandlingMiddleware())
+logger.info("Error handling middleware registered")
 
 
 def create_bot() -> Bot:

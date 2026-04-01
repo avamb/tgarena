@@ -18,12 +18,16 @@ try:
     from app.bot.bot import create_bot, dp
     from app.bot.handlers import register_handlers
     from app.core.config import settings
-    from app.core.database import init_db
+    from app.core.database import init_db, engine
+    from app.core.redis_client import ping_redis
 except ModuleNotFoundError:
     from backend.app.bot.bot import create_bot, dp
     from backend.app.bot.handlers import register_handlers
     from backend.app.core.config import settings
-    from backend.app.core.database import init_db
+    from backend.app.core.database import init_db, engine
+    from backend.app.core.redis_client import ping_redis
+
+from sqlalchemy import text
 
 # Configure logging
 logging.basicConfig(
@@ -33,8 +37,38 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+async def check_infrastructure_health():
+    """
+    Perform startup health checks on PostgreSQL and Redis.
+
+    Raises SystemExit with a clear error message if services are unavailable.
+    """
+    # Check PostgreSQL connectivity
+    try:
+        async with engine.connect() as conn:
+            result = await conn.execute(text("SELECT 1"))
+            result.fetchone()
+        logger.info("✓ PostgreSQL health check: OK")
+    except Exception as e:
+        logger.critical(f"✗ PostgreSQL health check FAILED: {e}")
+        raise SystemExit(f"Cannot start bot: PostgreSQL is unavailable - {e}")
+
+    # Check Redis connectivity
+    try:
+        redis_ok = await ping_redis()
+        if redis_ok:
+            logger.info("✓ Redis health check: OK")
+        else:
+            logger.warning("⚠ Redis health check: PING returned False (degraded mode)")
+    except Exception as e:
+        logger.warning(f"⚠ Redis health check: {e} (bot will run without caching)")
+
+
 async def on_startup(bot: Bot):
     """Actions to perform on bot startup."""
+    # Perform infrastructure health checks
+    await check_infrastructure_health()
+
     # Initialize database
     await init_db()
     logger.info("Database initialized")
