@@ -67,7 +67,7 @@ services:
       - BILL24_DEFAULT_ZONE=${BILL24_DEFAULT_ZONE:-test}
       - DEBUG=true
       - ENV=development
-    command: python -m bot.main
+    command: python -m backend.app.bot.runner
     depends_on:
       postgres:
         condition: service_healthy

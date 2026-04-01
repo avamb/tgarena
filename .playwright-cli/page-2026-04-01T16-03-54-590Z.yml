@@ -1,0 +1,106 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e23]:
+    - link "Skip to main content" [ref=e24] [cursor=pointer]:
+      - /url: "#main-content"
+    - complementary [ref=e25]:
+      - generic [ref=e26]:
+        - generic [ref=e28]: TG-Ticket-Agent
+        - navigation [ref=e29]:
+          - link "Dashboard" [ref=e30] [cursor=pointer]:
+            - /url: /dashboard
+            - img [ref=e31]
+            - text: Dashboard
+          - link "Agents" [ref=e36] [cursor=pointer]:
+            - /url: /agents
+            - img [ref=e37]
+            - text: Agents
+          - link "Users" [ref=e39] [cursor=pointer]:
+            - /url: /users
+            - img [ref=e40]
+            - text: Users
+          - link "Orders" [ref=e45] [cursor=pointer]:
+            - /url: /orders
+            - img [ref=e46]
+            - text: Orders
+          - link "Webhooks" [ref=e50] [cursor=pointer]:
+            - /url: /webhooks
+            - img [ref=e51]
+            - text: Webhooks
+          - link "Settings" [ref=e55] [cursor=pointer]:
+            - /url: /settings
+            - img [ref=e56]
+            - text: Settings
+        - generic [ref=e60]:
+          - generic [ref=e61]:
+            - paragraph [ref=e62]: admin
+            - paragraph [ref=e63]: super_admin
+          - button "Logout" [ref=e64] [cursor=pointer]:
+            - img [ref=e65]
+    - generic [ref=e68]:
+      - banner [ref=e69]:
+        - navigation "Breadcrumb" [ref=e222]:
+          - link "Dashboard" [ref=e224] [cursor=pointer]:
+            - /url: /dashboard
+            - generic [ref=e225]:
+              - img [ref=e226]
+              - generic [ref=e229]: Dashboard
+          - generic [ref=e230]:
+            - img [ref=e231]
+            - link "Agents" [ref=e313] [cursor=pointer]:
+              - /url: /agents
+          - generic [ref=e314]:
+            - img [ref=e315]
+            - generic [ref=e317]: Abh-test
+      - main [ref=e72]:
+        - generic [ref=e318]:
+          - generic [ref=e319]:
+            - generic [ref=e320]:
+              - link [ref=e321] [cursor=pointer]:
+                - /url: /agents
+                - img [ref=e322]
+              - heading "Abh-test" [level=1] [ref=e324]
+              - generic [ref=e325]: Active
+            - link "Edit" [ref=e326] [cursor=pointer]:
+              - /url: /agents
+              - img [ref=e327]
+              - text: Edit
+          - generic [ref=e330]:
+            - heading "Agent Information" [level=2] [ref=e331]
+            - generic [ref=e332]:
+              - generic [ref=e333]:
+                - generic [ref=e334]: ID
+                - paragraph [ref=e335]: "68"
+              - generic [ref=e336]:
+                - generic [ref=e337]: Bill24 FID
+                - paragraph [ref=e338]: "1311"
+              - generic [ref=e339]:
+                - generic [ref=e340]: Zone
+                - paragraph [ref=e341]:
+                  - generic [ref=e342]: test
+              - generic [ref=e343]:
+                - generic [ref=e344]: Created
+                - paragraph [ref=e345]: April 1, 2026
+              - generic [ref=e346]:
+                - generic [ref=e347]: Deep Link
+                - generic [ref=e348]:
+                  - code [ref=e349]: https://t.me/ArenaAppTestZone_bot?start=agent_68
+                  - button "Copy" [ref=e350] [cursor=pointer]:
+                    - img [ref=e351]
+                    - text: Copy
+          - generic [ref=e354]:
+            - generic [ref=e356]:
+              - img [ref=e357]
+              - generic [ref=e362]:
+                - paragraph [ref=e363]: Total Users
+                - paragraph [ref=e364]: "0"
+            - generic [ref=e366]:
+              - img [ref=e367]
+              - generic [ref=e371]:
+                - paragraph [ref=e372]: Total Orders
+                - paragraph [ref=e373]: "0"
+            - generic [ref=e375]:
+              - img [ref=e376]
+              - generic [ref=e378]:
+                - paragraph [ref=e379]: Revenue
+                - paragraph [ref=e380]: "0"
+  - generic [ref=e221]: "0"

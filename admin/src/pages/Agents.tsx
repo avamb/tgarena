@@ -63,7 +63,7 @@ export default function Agents() {
   const [totalAgents, setTotalAgents] = useState(0)
   const pageSize = 10
   const isInitialMount = useRef(true)
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Handle 401 unauthorized - session expired
   const handleUnauthorized = useCallback(() => {

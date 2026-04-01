@@ -1,9 +1,24 @@
 """
-Bot Message Handlers
+Bot Message Handlers (DEPRECATED)
 
-Handlers for Telegram bot commands and callbacks.
-Uses inline keyboard buttons (system buttons) for navigation.
+These are STUB handlers that return hardcoded placeholder messages.
+They do NOT call the Bill24 API and should NOT be used.
+
+The real handlers with full Bill24 integration, database access,
+and event browsing live in: backend/app/bot/handlers.py
+
+The bot entry point (bot/main.py) now delegates to
+backend/app/bot/runner.py which uses the real handlers.
+
+This file is kept for reference only.
 """
+
+import warnings
+warnings.warn(
+    "bot.handlers is deprecated. Use backend.app.bot.handlers instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 from aiogram import Dispatcher, F, Router
 from aiogram.filters import Command, CommandStart

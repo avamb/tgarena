@@ -592,6 +592,125 @@ async def cmd_tickets(message: Message):
         await message.answer(get_text("no_tickets", lang))
 
 
+@router.message(Command("events"))
+async def cmd_events(message: Message):
+    """Handle /events command - show events for user's current agent."""
+    telegram_user = message.from_user
+    lang = get_user_language(telegram_user.language_code if telegram_user else None)
+
+    async for session in get_async_session():
+        user = await get_or_create_user(session, message)
+        lang = user.preferred_language or lang
+
+        if not user.current_agent_id:
+            await message.answer(get_text("error_no_agent", lang))
+            return
+
+        # Get agent
+        result = await session.execute(
+            select(Agent).where(Agent.id == user.current_agent_id)
+        )
+        agent = result.scalar_one_or_none()
+
+        if not agent:
+            await message.answer(get_text("error_no_agent", lang))
+            return
+
+        if not agent.is_active:
+            await message.answer(get_text("error_agent_inactive", lang))
+            return
+
+        # Show loading message
+        loading_msg = await message.answer(get_text("loading_events", lang))
+
+        try:
+            events = await fetch_events_from_bill24(agent)
+
+            if not events:
+                await loading_msg.edit_text(get_text("no_events", lang))
+                return
+
+            page_events, total_pages = get_page_events(events, page=1)
+            message_text = build_events_list_message(page_events, page=1, total_pages=total_pages, lang=lang)
+            keyboard = build_events_pagination_keyboard(page_events, page=1, total_pages=total_pages, lang=lang)
+
+            await loading_msg.edit_text(
+                message_text,
+                reply_markup=keyboard,
+                parse_mode="HTML"
+            )
+
+        except Bill24Error as e:
+            logger.error(f"Failed to fetch events via /events command: {e}")
+            await loading_msg.edit_text(get_text("error_fetching_events", lang))
+        except Exception as e:
+            logger.exception(f"Unexpected error in /events command: {e}")
+            await loading_msg.edit_text(get_text("error_general", lang))
+
+
+@router.message(Command("mytickets"))
+async def cmd_mytickets(message: Message):
+    """Handle /mytickets command - alias for /tickets."""
+    telegram_user = message.from_user
+    lang = get_user_language(telegram_user.language_code if telegram_user else None)
+
+    async for session in get_async_session():
+        user = await get_or_create_user(session, message)
+        lang = user.preferred_language or lang
+
+        await message.answer(get_text("no_tickets", lang))
+
+
+@router.message(Command("language"))
+async def cmd_language(message: Message):
+    """Handle /language command - show language selection."""
+    telegram_user = message.from_user
+    lang = get_user_language(telegram_user.language_code if telegram_user else None)
+
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="🇷🇺 Русский", callback_data="set_lang_ru"),
+        InlineKeyboardButton(text="🇬🇧 English", callback_data="set_lang_en"),
+    )
+
+    await message.answer(
+        get_text("select_language", lang),
+        reply_markup=builder.as_markup()
+    )
+
+
+@router.callback_query(F.data.startswith("set_lang_"))
+async def callback_set_language(callback: CallbackQuery):
+    """Handle language selection callback."""
+    telegram_user = callback.from_user
+    selected_lang = callback.data.replace("set_lang_", "")
+
+    if selected_lang not in ("ru", "en"):
+        selected_lang = "ru"
+
+    await callback.answer()
+
+    async for session in get_async_session():
+        result = await session.execute(
+            select(User).where(User.telegram_chat_id == telegram_user.id)
+        )
+        user = result.scalar_one_or_none()
+
+        if user:
+            user.preferred_language = selected_lang
+            await session.commit()
+
+    success_text = {
+        "ru": "✅ Язык изменён на русский",
+        "en": "✅ Language changed to English",
+    }
+
+    await callback.message.edit_text(
+        success_text.get(selected_lang, success_text["en"]),
+        reply_markup=get_main_keyboard(selected_lang, has_agent=True)
+    )
+
+
 @router.callback_query(F.data == "help")
 async def callback_help(callback: CallbackQuery):
     """Handle help button callback."""

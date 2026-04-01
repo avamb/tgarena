@@ -49,7 +49,7 @@ export default function Webhooks() {
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<WebhookTestResult | null>(null)
 
-  const getAuthHeader = () => {
+  const getAuthHeader = (): Record<string, string> => {
     return token ? { Authorization: `Bearer ${token}` } : {}
   }
 

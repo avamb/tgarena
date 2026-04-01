@@ -1,0 +1,127 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e23]:
+      - link "Skip to main content" [ref=e24] [cursor=pointer]:
+        - /url: "#main-content"
+      - complementary [ref=e25]:
+        - generic [ref=e26]:
+          - generic [ref=e28]: TG-Ticket-Agent
+          - navigation [ref=e29]:
+            - link "Dashboard" [ref=e30] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e31]
+              - text: Dashboard
+            - link "Agents" [ref=e36] [cursor=pointer]:
+              - /url: /agents
+              - img [ref=e37]
+              - text: Agents
+            - link "Users" [ref=e39] [cursor=pointer]:
+              - /url: /users
+              - img [ref=e40]
+              - text: Users
+            - link "Orders" [ref=e45] [cursor=pointer]:
+              - /url: /orders
+              - img [ref=e46]
+              - text: Orders
+            - link "Webhooks" [ref=e50] [cursor=pointer]:
+              - /url: /webhooks
+              - img [ref=e51]
+              - text: Webhooks
+            - link "Settings" [ref=e55] [cursor=pointer]:
+              - /url: /settings
+              - img [ref=e56]
+              - text: Settings
+          - generic [ref=e60]:
+            - generic [ref=e61]:
+              - paragraph [ref=e62]: admin
+              - paragraph [ref=e63]: super_admin
+            - button "Logout" [ref=e64] [cursor=pointer]:
+              - img [ref=e65]
+      - generic [ref=e68]:
+        - banner [ref=e69]:
+          - heading "Dashboard" [level=2] [ref=e71]
+        - main [ref=e72]:
+          - generic [ref=e73]:
+            - heading "Dashboard" [level=1] [ref=e74]
+            - generic [ref=e75]:
+              - generic [ref=e77]:
+                - img [ref=e79]
+                - generic [ref=e84]:
+                  - paragraph [ref=e85]: Total Users
+                  - paragraph [ref=e86]: "5"
+              - generic [ref=e88]:
+                - img [ref=e90]
+                - generic [ref=e94]:
+                  - paragraph [ref=e95]: Total Orders
+                  - paragraph [ref=e96]: "1"
+              - generic [ref=e98]:
+                - img [ref=e100]
+                - generic [ref=e102]:
+                  - paragraph [ref=e103]: Revenue
+                  - paragraph [ref=e104]: ₽2500
+              - generic [ref=e106]:
+                - img [ref=e108]
+                - generic [ref=e110]:
+                  - paragraph [ref=e111]: Active Agents
+                  - paragraph [ref=e112]: "1"
+            - generic [ref=e113]:
+              - heading "Recent Orders" [level=2] [ref=e114]
+              - table [ref=e116]:
+                - rowgroup [ref=e117]:
+                  - row "Order ID Customer Agent Status Total Date" [ref=e118]:
+                    - columnheader "Order ID" [ref=e119]
+                    - columnheader "Customer" [ref=e120]
+                    - columnheader "Agent" [ref=e121]
+                    - columnheader "Status" [ref=e122]
+                    - columnheader "Total" [ref=e123]
+                    - columnheader "Date" [ref=e124]
+                - rowgroup [ref=e125]:
+                  - row "#1 John Doe Deep Link Test Agent Updated CANCELLED ₽2,500 Jan 9, 2026" [ref=e126]:
+                    - cell "#1" [ref=e127]
+                    - cell "John Doe" [ref=e128]
+                    - cell "Deep Link Test Agent Updated" [ref=e129]
+                    - cell "CANCELLED" [ref=e130]
+                    - cell "₽2,500" [ref=e131]
+                    - cell "Jan 9, 2026" [ref=e132]
+            - generic [ref=e133]:
+              - generic [ref=e134]:
+                - heading "Sales Overview" [level=2] [ref=e135]
+                - generic [ref=e136]:
+                  - button "Week" [ref=e137] [cursor=pointer]
+                  - button "Month" [ref=e138] [cursor=pointer]
+                  - button "Year" [ref=e139] [cursor=pointer]
+              - generic [ref=e142]:
+                - img [ref=e143]:
+                  - generic [ref=e148]:
+                    - generic [ref=e150]: Mar 26
+                    - generic [ref=e152]: Mar 27
+                    - generic [ref=e154]: Mar 28
+                    - generic [ref=e156]: Mar 29
+                    - generic [ref=e158]: Mar 30
+                    - generic [ref=e160]: Mar 31
+                    - generic [ref=e162]: Apr 01
+                  - generic [ref=e163]:
+                    - generic [ref=e164]:
+                      - generic [ref=e166]: "0"
+                      - generic [ref=e168]: "1"
+                      - generic [ref=e170]: "2"
+                      - generic [ref=e172]: "3"
+                      - generic [ref=e174]: "4"
+                    - generic [ref=e175]: Orders
+                  - generic [ref=e176]:
+                    - generic [ref=e177]:
+                      - generic [ref=e179]: "0"
+                      - generic [ref=e181]: "1"
+                      - generic [ref=e183]: "2"
+                      - generic [ref=e185]: "3"
+                      - generic [ref=e187]: "4"
+                    - generic [ref=e188]: Revenue (₽)
+                - list [ref=e208]:
+                  - listitem [ref=e209]:
+                    - img [ref=e210]
+                    - text: Orders
+                  - listitem [ref=e212]:
+                    - img [ref=e213]
+                    - text: Revenue
+    - status [ref=e220]: Login successful!
+  - generic [ref=e221]: "0"

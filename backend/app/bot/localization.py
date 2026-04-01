@@ -76,7 +76,8 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         # Help
         "unknown_command": "Неизвестная команда. Используйте /help для списка команд.",
         "unknown_message": "Я не понимаю. Используйте /help для помощи.",
-        "help_text": "🎫 <b>TG-Ticket-Agent - Помощь</b>\n\n<b>Как купить билеты:</b>\n1. Перейдите по ссылке от агента\n2. Выберите мероприятие\n3. Нажмите 'Купить билет'\n4. Выберите места в открывшемся окне\n5. Оплатите заказ\n\nБилеты будут отправлены вам в этот чат.\n\n<b>Команды:</b>\n/start - Начать\n/help - Показать это сообщение\n/tickets - Мои билеты",
+        "help_text": "🎫 <b>TG-Ticket-Agent - Помощь</b>\n\n<b>Как купить билеты:</b>\n1. Перейдите по ссылке от агента\n2. Выберите мероприятие\n3. Нажмите 'Купить билет'\n4. Выберите места в открывшемся окне\n5. Оплатите заказ\n\nБилеты будут отправлены вам в этот чат.\n\n<b>Команды:</b>\n/start - Начать\n/events - Мероприятия\n/mytickets - Мои билеты\n/help - Показать это сообщение\n/language - Сменить язык",
+        "select_language": "🌐 Выберите язык / Select language:",
 
         # Age restriction
         "age_0": "",
@@ -148,7 +149,8 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         # Help
         "unknown_command": "Unknown command. Use /help for available commands.",
         "unknown_message": "I don't understand. Use /help for assistance.",
-        "help_text": "🎫 <b>TG-Ticket-Agent - Help</b>\n\n<b>How to buy tickets:</b>\n1. Use the link from an agent\n2. Select an event\n3. Click 'Buy Ticket'\n4. Select seats in the opened window\n5. Complete payment\n\nTickets will be sent to this chat.\n\n<b>Commands:</b>\n/start - Start\n/help - Show this message\n/tickets - My tickets",
+        "help_text": "🎫 <b>TG-Ticket-Agent - Help</b>\n\n<b>How to buy tickets:</b>\n1. Use the link from an agent\n2. Select an event\n3. Click 'Buy Ticket'\n4. Select seats in the opened window\n5. Complete payment\n\nTickets will be sent to this chat.\n\n<b>Commands:</b>\n/start - Start\n/events - Browse events\n/mytickets - My tickets\n/help - Show this message\n/language - Change language",
+        "select_language": "🌐 Select language / Выберите язык:",
 
         # Age restriction
         "age_0": "",

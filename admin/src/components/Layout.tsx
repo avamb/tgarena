@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
   Users,

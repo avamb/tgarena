@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from aiogram import Bot
+from aiogram.types import BotCommand
 
 try:
     from app.bot.bot import create_bot, dp
@@ -64,6 +65,19 @@ async def check_infrastructure_health():
         logger.warning(f"⚠ Redis health check: {e} (bot will run without caching)")
 
 
+async def set_bot_commands(bot: Bot):
+    """Set bot commands for the Telegram menu."""
+    commands = [
+        BotCommand(command="start", description="Start the bot"),
+        BotCommand(command="events", description="Browse events"),
+        BotCommand(command="mytickets", description="View my tickets"),
+        BotCommand(command="help", description="Get help"),
+        BotCommand(command="language", description="Change language"),
+    ]
+    await bot.set_my_commands(commands)
+    logger.info("Bot commands set")
+
+
 async def on_startup(bot: Bot):
     """Actions to perform on bot startup."""
     # Perform infrastructure health checks
@@ -72,6 +86,9 @@ async def on_startup(bot: Bot):
     # Initialize database
     await init_db()
     logger.info("Database initialized")
+
+    # Set bot menu commands
+    await set_bot_commands(bot)
 
     # Get bot info
     bot_info = await bot.get_me()
