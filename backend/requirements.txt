@@ -33,6 +33,10 @@ aiohttp>=3.9.1
 # Payment Processing
 stripe>=8.0.0
 
+# Barcode/QR generation (ensure available in Docker)
+qrcode[pil]>=7.4.2
+python-barcode[images]>=0.15.1
+
 # Data Validation & Serialization
 email-validator>=2.1.0
 python-dateutil>=2.8.2
