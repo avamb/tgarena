@@ -30,6 +30,9 @@ passlib[bcrypt]>=1.7.4
 httpx>=0.26.0
 aiohttp>=3.9.1
 
+# Payment Processing
+stripe>=8.0.0
+
 # Data Validation & Serialization
 email-validator>=2.1.0
 python-dateutil>=2.8.2
