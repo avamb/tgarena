@@ -42,7 +42,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy application code
+# Copy application code (cache-bust: 2026-04-02)
 COPY backend/ ./backend/
 COPY bot/ ./bot/
 
