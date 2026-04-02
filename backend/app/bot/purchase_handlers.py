@@ -483,10 +483,13 @@ async def handle_select_quantity(callback: CallbackQuery, state: FSMContext):
             expires_at = datetime.utcnow() + timedelta(seconds=cart_timeout)
             minutes_left = cart_timeout // 60
 
+            currency = reserve_result.get("currency", "ILS")
+
             await state.update_data(
                 reserved_seat_ids=seat_ids,
                 action_event_id=action_event_id,
                 cart_timeout=cart_timeout,
+                currency=currency,
                 total_sum=total_sum,
                 category_name=cat["name"],
                 quantity=quantity,
@@ -591,7 +594,7 @@ async def handle_confirm_pay(callback: CallbackQuery, state: FSMContext):
                 bil24_order_id=bil24_order_id,
                 status="NEW",
                 total_sum=Decimal(str(data.get("total_sum", 0))),
-                currency="RUB",
+                currency=data.get("currency", "ILS"),
                 ticket_count=data.get("quantity", 0),
                 payment_type=agent.payment_type or "bill24_acquiring",
                 bil24_form_url=form_url,
