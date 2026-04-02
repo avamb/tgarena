@@ -12,7 +12,10 @@ from typing import Optional, List, Dict, Any, Tuple
 
 from aiogram import Router, F
 from aiogram.filters import Command, CommandStart
-from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import (
+    Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup,
+    WebAppInfo, URLInputFile,
+)
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 try:
@@ -57,7 +60,7 @@ async def get_or_create_user(session: AsyncSession, message: Message) -> User:
             telegram_last_name=telegram_user.last_name,
             telegram_language_code=telegram_user.language_code,
             preferred_language=get_user_language(telegram_user.language_code),
-            last_active_at=datetime.now(timezone.utc),
+            last_active_at=datetime.utcnow(),
         )
         session.add(user)
         await session.commit()
@@ -65,7 +68,7 @@ async def get_or_create_user(session: AsyncSession, message: Message) -> User:
         logger.info(f"Created new user: chat_id={telegram_user.id}, username={telegram_user.username}")
     else:
         # Update last_active_at for existing user
-        user.last_active_at = datetime.now(timezone.utc)
+        user.last_active_at = datetime.utcnow()
         await session.commit()
 
     return user
@@ -150,8 +153,12 @@ async def fetch_events_from_bill24(agent: Agent) -> List[Dict[str, Any]]:
     Returns:
         List of event dictionaries
     """
-    from app.core.config import settings as app_settings
-    from app.core.redis_client import event_cache
+    try:
+        from app.core.config import settings as app_settings
+        from app.core.redis_client import event_cache
+    except ModuleNotFoundError:
+        from backend.app.core.config import settings as app_settings
+        from backend.app.core.redis_client import event_cache
 
     # Check cache first (if caching is enabled)
     if app_settings.ENABLE_EVENT_CACHING:
@@ -421,9 +428,19 @@ async def cmd_start(message: Message):
     telegram_user = message.from_user
     lang = get_user_language(telegram_user.language_code if telegram_user else None)
 
-    # Parse deep link parameter (contains agent.id, NOT fid)
+    # Parse deep link parameter
     args = message.text.split(maxsplit=1)
     deep_link_param = args[1] if len(args) > 1 else None
+
+    # Handle paid_ deep link (return from payment)
+    if deep_link_param and deep_link_param.startswith("paid_"):
+        try:
+            from app.bot.purchase_handlers import handle_paid_return
+        except ModuleNotFoundError:
+            from backend.app.bot.purchase_handlers import handle_paid_return
+        await handle_paid_return(message, deep_link_param)
+        return
+
     agent_id = parse_deep_link(deep_link_param) if deep_link_param else None
 
     async for session in get_async_session():
@@ -902,11 +919,16 @@ def build_event_details_message(event: Dict[str, Any], lang: str) -> str:
     )
 
 
-def build_event_details_keyboard(event_id: int, lang: str) -> InlineKeyboardMarkup:
+def build_event_details_keyboard(
+    event_id: int,
+    lang: str,
+    agent_fid: int = 0,
+    chat_id: int = 0,
+) -> InlineKeyboardMarkup:
     """Build keyboard for event details with buy and back buttons."""
     builder = InlineKeyboardBuilder()
 
-    # Buy ticket button
+    # Buy ticket button — handled by purchase_handlers via callback
     builder.row(
         InlineKeyboardButton(
             text=get_text("btn_buy_ticket", lang),
@@ -981,20 +1003,45 @@ async def callback_event_details(callback: CallbackQuery):
 
             # Build message and keyboard
             message_text = build_event_details_message(event, lang)
-            keyboard = build_event_details_keyboard(event_id, lang)
-
-            await callback.message.edit_text(
-                message_text,
-                reply_markup=keyboard,
-                parse_mode="HTML"
+            keyboard = build_event_details_keyboard(
+                event_id, lang,
+                agent_fid=agent.fid,
+                chat_id=telegram_user.id,
             )
+
+            # Send event poster if available, otherwise just text
+            poster_url = event.get("bigPosterUrl") or event.get("smallPosterUrl")
+            if poster_url:
+                # Delete old message (can't edit text into photo)
+                try:
+                    await callback.message.delete()
+                except Exception:
+                    pass
+                await callback.message.answer_photo(
+                    photo=URLInputFile(poster_url),
+                    caption=message_text,
+                    reply_markup=keyboard,
+                    parse_mode="HTML",
+                )
+            else:
+                await callback.message.edit_text(
+                    message_text,
+                    reply_markup=keyboard,
+                    parse_mode="HTML"
+                )
 
         except Bill24Error as e:
             logger.error(f"Failed to fetch event details: {e}")
-            await callback.message.edit_text(get_text("error_fetching_events", lang))
+            try:
+                await callback.message.edit_text(get_text("error_fetching_events", lang))
+            except Exception:
+                await callback.message.answer(get_text("error_fetching_events", lang))
         except Exception as e:
             logger.exception(f"Unexpected error fetching event details: {e}")
-            await callback.message.edit_text(get_text("error_general", lang))
+            try:
+                await callback.message.edit_text(get_text("error_general", lang))
+            except Exception:
+                await callback.message.answer(get_text("error_general", lang))
 
 
 @router.callback_query(F.data == "back_to_events")
@@ -1048,11 +1095,23 @@ async def callback_back_to_events(callback: CallbackQuery):
             message_text = build_events_list_message(page_events, page=1, total_pages=total_pages, lang=lang)
             keyboard = build_events_pagination_keyboard(page_events, page=1, total_pages=total_pages, lang=lang)
 
-            await callback.message.edit_text(
-                message_text,
-                reply_markup=keyboard,
-                parse_mode="HTML"
-            )
+            # If current message is a photo (from event details with poster), delete and send new
+            if callback.message.photo:
+                try:
+                    await callback.message.delete()
+                except Exception:
+                    pass
+                await callback.message.answer(
+                    message_text,
+                    reply_markup=keyboard,
+                    parse_mode="HTML"
+                )
+            else:
+                await callback.message.edit_text(
+                    message_text,
+                    reply_markup=keyboard,
+                    parse_mode="HTML"
+                )
 
         except Bill24Error as e:
             logger.error(f"Failed to fetch events: {e}")
@@ -1115,5 +1174,11 @@ async def msg_unknown(message: Message):
 
 def register_handlers(dp):
     """Register all handlers with the dispatcher."""
+    # Purchase router first — it handles buy_ callbacks (FSM-based purchase flow)
+    try:
+        from app.bot.purchase_handlers import purchase_router
+    except ModuleNotFoundError:
+        from backend.app.bot.purchase_handlers import purchase_router
+    dp.include_router(purchase_router)
     dp.include_router(router)
     logger.info("Bot handlers registered")

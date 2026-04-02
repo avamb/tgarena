@@ -16,7 +16,10 @@ from tenacity import (
     wait_exponential,
 )
 
-from app.core.config import settings
+try:
+    from app.core.config import settings
+except ModuleNotFoundError:
+    from backend.app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -252,9 +255,9 @@ class Bill24Client:
         response = await self._request("GET_ACTIONS_V2", params)
         return response.get("actionList", [])
 
-    async def get_action_ext(self, action_id: int) -> Dict[str, Any]:
+    async def get_action_ext(self, action_id: int, city_id: int = 1) -> Dict[str, Any]:
         """Get detailed information about specific event."""
-        params = {"actionId": action_id}
+        params = {"actionId": action_id, "cityId": city_id}
         response = await self._request("GET_ACTION_EXT", params)
         return response
 
@@ -309,28 +312,35 @@ class Bill24Client:
     async def reserve_seats(
         self,
         action_event_id: int,
-        seat_ids: List[int],
+        seat_ids: Optional[List[int]] = None,
+        category_list: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
         Reserve seats for user.
 
-        Args:
-            action_event_id: Event session ID
-            seat_ids: List of seat IDs to reserve
+        For placement events: pass seat_ids.
+        For non-placement (GA) events: pass category_list with
+        [{"categoryPriceId": int, "quantity": int}].
 
         Returns:
             Dict with reserved seats and cart timeout
         """
-        params = {
+        params: Dict[str, Any] = {
             "actionEventId": action_event_id,
-            "seatList": seat_ids,
             "type": "RESERVE",
         }
+        if seat_ids:
+            params["seatList"] = [{"seatId": sid} for sid in seat_ids]
+        if category_list:
+            params["categoryList"] = category_list
         response = await self._request("RESERVATION", params)
+        # Calculate totalSum from seatList
+        total = sum(s.get("price", 0) for s in response.get("seatList", []))
         return {
             "seatList": response.get("seatList", []),
             "cartTimeout": response.get("cartTimeout", 600),
-            "totalSum": response.get("totalSum", 0),
+            "totalSum": total,
+            "currency": response.get("currency", ""),
         }
 
     async def unreserve_seats(
@@ -422,13 +432,24 @@ class Bill24Client:
         response = await self._request("GET_ORDER_INFO", params)
         return response
 
-    async def get_tickets_by_order(self, order_id: int) -> List[Dict[str, Any]]:
+    async def get_tickets_by_order(
+        self,
+        order_id: int,
+        size_qr_code: int = 300,
+        width_bar_code: int = 300,
+        height_bar_code: int = 80,
+    ) -> List[Dict[str, Any]]:
         """
         Get tickets for paid order.
 
-        Returns ticket data including QR codes and barcodes.
+        Returns ticket data including QR codes and barcodes (Base64).
         """
-        params = {"orderId": order_id}
+        params = {
+            "orderId": order_id,
+            "sizeQrCode": size_qr_code,
+            "widthBarCode": width_bar_code,
+            "heightBarCode": height_bar_code,
+        }
         response = await self._request("GET_TICKETS_BY_ORDER", params)
         return response.get("ticketList", [])
 

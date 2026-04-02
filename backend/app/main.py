@@ -12,18 +12,17 @@ from fastapi.middleware.cors import CORSMiddleware
 try:
     # When running from backend directory (e.g., uvicorn app.main:app)
     from app.api import admin_router, webhook_router, widget_router
+    from app.api.payments import payments_router
     from app.core.config import settings
     from app.core.database import init_db
     from app.core.redis_client import get_redis_client, close_redis_client, ping_redis
-    # Import models to register them with Base.metadata
     from app import models  # noqa: F401
 except ModuleNotFoundError:
-    # When running from root with backend prefix (e.g., docker-compose)
     from backend.app.api import admin_router, webhook_router, widget_router
+    from backend.app.api.payments import payments_router
     from backend.app.core.config import settings
     from backend.app.core.database import init_db
     from backend.app.core.redis_client import get_redis_client, close_redis_client, ping_redis
-    # Import models to register them with Base.metadata
     from backend.app import models  # noqa: F401
 
 
@@ -75,6 +74,14 @@ def create_application() -> FastAPI:
     app.include_router(admin_router, prefix="/api/admin", tags=["Admin"])
     app.include_router(webhook_router, prefix="/api/webhooks", tags=["Webhooks"])
     app.include_router(widget_router, prefix="/api/widget", tags=["Widget"])
+    app.include_router(payments_router, prefix="/api/payments", tags=["Payments"])
+
+    # Serve static files (payment page for Telegram Mini App)
+    from pathlib import Path
+    from fastapi.staticfiles import StaticFiles
+    static_dir = Path(__file__).parent / "static"
+    if static_dir.exists():
+        app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
     return app
 

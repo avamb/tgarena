@@ -44,6 +44,17 @@ class Settings(BaseSettings):
     ADMIN_DEFAULT_USERNAME: str = "admin"
     ADMIN_DEFAULT_PASSWORD: str = "changeme123"
 
+    # Widget
+    WIDGET_URL: Optional[str] = None  # WebApp URL for ticket purchase widget
+
+    # Payment
+    PAYMENT_SUCCESS_URL: str = ""  # URL for redirect after successful payment
+    PAYMENT_FAIL_URL: str = ""     # URL for redirect after failed payment
+    PAYMENT_PROVIDER: str = ""     # "stripe" or "yukassa" (for Variant B agents)
+    STRIPE_SECRET_KEY: Optional[str] = None
+    STRIPE_PUBLISHABLE_KEY: Optional[str] = None
+    STRIPE_WEBHOOK_SECRET: Optional[str] = None
+
     # Webhooks
     N8N_WEBHOOK_URL: Optional[str] = None
     WEBHOOK_SECRET: Optional[str] = None

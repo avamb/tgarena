@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Payment</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--tg-theme-bg-color, #fff);
+            color: var(--tg-theme-text-color, #000);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .header h2 {
+            font-size: 18px;
+            margin-bottom: 4px;
+        }
+        .amount {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 8px 0;
+        }
+        .description {
+            font-size: 14px;
+            opacity: 0.6;
+        }
+        #payment-element {
+            margin: 24px 0;
+        }
+        #error-message {
+            color: #df1b41;
+            font-size: 14px;
+            margin-top: 12px;
+            text-align: center;
+            display: none;
+        }
+        .spinner {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        .spinner::after {
+            content: '';
+            display: inline-block;
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--tg-theme-hint-color, #ccc);
+            border-top-color: var(--tg-theme-button-color, #007aff);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .success {
+            display: none;
+            text-align: center;
+            padding: 40px 20px;
+        }
+        .success .check {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        .success h2 {
+            margin-bottom: 8px;
+        }
+        .success p {
+            opacity: 0.6;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Payment Form -->
+    <div id="payment-form-container">
+        <div class="header">
+            <h2 id="event-name"></h2>
+            <div class="amount" id="amount-display"></div>
+            <div class="description" id="ticket-info"></div>
+        </div>
+        <form id="payment-form">
+            <div id="payment-element"></div>
+            <div id="error-message"></div>
+        </form>
+    </div>
+
+    <!-- Loading -->
+    <div class="spinner" id="spinner"></div>
+
+    <!-- Success -->
+    <div class="success" id="success">
+        <div class="check">✅</div>
+        <h2>Payment Confirmed!</h2>
+        <p>Your tickets will be sent to the chat.</p>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+
+        // Parse URL params
+        const params = new URLSearchParams(window.location.search);
+        const orderId = params.get('order_id');
+        const eventName = params.get('event') || '';
+        const amount = params.get('amount') || '';
+        const currency = params.get('currency') || 'ILS';
+        const tickets = params.get('tickets') || '1';
+
+        // Display info
+        document.getElementById('event-name').textContent = eventName;
+        document.getElementById('amount-display').textContent =
+            new Intl.NumberFormat('en', { style: 'currency', currency: currency.toUpperCase() })
+                .format(parseFloat(amount) || 0);
+        document.getElementById('ticket-info').textContent = `${tickets} ticket(s)`;
+
+        // Get API base URL (same origin)
+        const apiBase = window.location.origin;
+
+        let stripe, elements, paymentElement;
+
+        async function init() {
+            try {
+                // Create PaymentIntent via our API
+                const res = await fetch(`${apiBase}/api/payments/create-intent`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ order_id: parseInt(orderId) }),
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Failed to create payment');
+                }
+
+                const data = await res.json();
+
+                // Init Stripe
+                stripe = Stripe(data.publishable_key);
+                elements = stripe.elements({
+                    clientSecret: data.client_secret,
+                    appearance: {
+                        theme: tg.colorScheme === 'dark' ? 'night' : 'stripe',
+                        variables: {
+                            colorPrimary: tg.themeParams.button_color || '#007aff',
+                            borderRadius: '10px',
+                        },
+                    },
+                });
+
+                // Mount Payment Element
+                paymentElement = elements.create('payment', {
+                    layout: 'tabs',
+                    fields: {
+                        billingDetails: {
+                            email: 'never',  // Hide email field
+                            phone: 'never',
+                            address: 'never',
+                        },
+                    },
+                });
+                paymentElement.mount('#payment-element');
+
+                // Show Telegram MainButton for payment
+                tg.MainButton.setText('Pay');
+                tg.MainButton.color = tg.themeParams.button_color || '#007aff';
+                tg.MainButton.textColor = tg.themeParams.button_text_color || '#fff';
+                tg.MainButton.show();
+                tg.MainButton.onClick(handlePayment);
+
+            } catch (err) {
+                showError(err.message);
+            }
+        }
+
+        async function handlePayment() {
+            tg.MainButton.showProgress();
+            tg.MainButton.disable();
+
+            const { error } = await stripe.confirmPayment({
+                elements,
+                confirmParams: {
+                    return_url: window.location.href, // Not used, we handle inline
+                },
+                redirect: 'if_required',
+            });
+
+            if (error) {
+                showError(error.message);
+                tg.MainButton.hideProgress();
+                tg.MainButton.enable();
+                return;
+            }
+
+            // Payment succeeded — confirm with our backend
+            show('spinner');
+
+            try {
+                const intentId = elements.getElement('payment')
+                    ? null : null; // We get it from confirmPayment result
+
+                // Retrieve the PaymentIntent to get its ID
+                const res = await fetch(`${apiBase}/api/payments/create-intent`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ order_id: parseInt(orderId) }),
+                });
+                // Actually, let's confirm via our endpoint
+                const confirmRes = await fetch(`${apiBase}/api/payments/confirm`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        order_id: parseInt(orderId),
+                        payment_intent_id: elements._commonOptions.clientSecret.split('_secret_')[0],
+                    }),
+                });
+
+                if (confirmRes.ok) {
+                    show('success');
+                    tg.MainButton.hide();
+                    // Close Mini App after 2 seconds
+                    setTimeout(() => tg.close(), 2000);
+                } else {
+                    const err = await confirmRes.json();
+                    showError(err.detail || 'Confirmation failed');
+                }
+            } catch (err) {
+                showError(err.message);
+            }
+
+            tg.MainButton.hideProgress();
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('error-message');
+            el.textContent = msg;
+            el.style.display = 'block';
+            setTimeout(() => { el.style.display = 'none'; }, 5000);
+        }
+
+        function show(id) {
+            document.getElementById('payment-form-container').style.display = 'none';
+            document.getElementById('spinner').style.display = 'none';
+            document.getElementById('success').style.display = 'none';
+            document.getElementById(id).style.display = 'block';
+        }
+
+        // Start
+        init();
+    </script>
+</body>
+</html>

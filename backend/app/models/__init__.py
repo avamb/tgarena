@@ -47,6 +47,9 @@ class Agent(Base):
     token: Mapped[str] = mapped_column(String(255), nullable=False)  # Encrypted
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     zone: Mapped[str] = mapped_column(String(10), default="test")  # 'test' or 'real'
+    payment_type: Mapped[str] = mapped_column(
+        String(20), default="bill24_acquiring"
+    )  # 'bill24_acquiring' (Variant A) or 'own_acquiring' (Variant B)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
@@ -123,6 +126,10 @@ class Order(Base):
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
     paid_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    payment_type: Mapped[str] = mapped_column(String(20), default="bill24_acquiring")
+    payment_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    bil24_form_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    reservation_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="orders")
