@@ -618,8 +618,14 @@ async def handle_confirm_pay(callback: CallbackQuery, state: FSMContext):
             # Send payment button
             builder = InlineKeyboardBuilder()
 
-            # Check if Stripe is configured — use Mini App for payment
-            if settings.STRIPE_SECRET_KEY and settings.STRIPE_PUBLISHABLE_KEY:
+            # Use Bill24 formUrl for payment (Ticket Agent interface)
+            # Stripe Mini App is available for Ticket System interface (PAY_ORDER)
+            # via agent.payment_type == "own_acquiring"
+            if (
+                agent.payment_type == "own_acquiring"
+                and settings.STRIPE_SECRET_KEY
+                and settings.STRIPE_PUBLISHABLE_KEY
+            ):
                 import urllib.parse
                 pay_params = urllib.parse.urlencode({
                     "order_id": db_order.id,
@@ -628,26 +634,14 @@ async def handle_confirm_pay(callback: CallbackQuery, state: FSMContext):
                     "currency": db_order.currency or "ILS",
                     "tickets": data.get("quantity", 1),
                 })
-                # Base URL from PAYMENT_SUCCESS_URL or construct from settings
                 base_url = settings.PAYMENT_SUCCESS_URL or f"https://t.me/{bot_username}"
-                if base_url.startswith("https://t.me"):
-                    # No web domain set — fall back to form_url
-                    pay_url = form_url
-                    builder.row(
-                        InlineKeyboardButton(
-                            text=get_text("btn_open_payment", lang),
-                            url=pay_url,
-                        )
+                pay_url = f"{base_url.rstrip('/')}/static/pay.html?{pay_params}"
+                builder.row(
+                    InlineKeyboardButton(
+                        text=get_text("btn_open_payment", lang),
+                        web_app=WebAppInfo(url=pay_url),
                     )
-                else:
-                    # Web domain available — use Mini App with Stripe
-                    pay_url = f"{base_url.rstrip('/')}/static/pay.html?{pay_params}"
-                    builder.row(
-                        InlineKeyboardButton(
-                            text=get_text("btn_open_payment", lang),
-                            web_app=WebAppInfo(url=pay_url),
-                        )
-                    )
+                )
             else:
                 # Bill24 acquiring — open formUrl in browser
                 builder.row(
