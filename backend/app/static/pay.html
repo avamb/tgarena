@@ -4,7 +4,6 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Payment</title>
-    <script src="https://js.stripe.com/v3/"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -12,19 +11,13 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--tg-theme-bg-color, #fff);
             color: var(--tg-theme-text-color, #000);
-            padding: 20px;
+            padding: 40px 20px;
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
-        .header { text-align: center; margin-bottom: 24px; }
-        .header h2 { font-size: 18px; margin-bottom: 4px; }
-        .amount { font-size: 32px; font-weight: 700; margin: 8px 0; }
-        .description { font-size: 14px; opacity: 0.6; }
-        #payment-element { margin: 24px 0; }
-        #error-message {
-            color: #df1b41; font-size: 14px; margin-top: 12px;
-            text-align: center; display: none;
-        }
-        .spinner { display: none; text-align: center; padding: 40px; }
         .spinner::after {
             content: ''; display: inline-block; width: 32px; height: 32px;
             border: 3px solid var(--tg-theme-hint-color, #ccc);
@@ -32,72 +25,21 @@
             border-radius: 50%; animation: spin 0.8s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .success { display: none; text-align: center; padding: 40px 20px; }
-        .success .check { font-size: 48px; margin-bottom: 16px; }
-        .success h2 { margin-bottom: 8px; }
-        .success p { opacity: 0.6; font-size: 14px; }
-        #pay-btn {
-            display: none;
-            width: 100%;
-            padding: 14px;
-            margin-top: 16px;
-            background: var(--tg-theme-button-color, #007aff);
-            color: var(--tg-theme-button-text-color, #fff);
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-        #pay-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        p { margin-top: 16px; font-size: 14px; opacity: 0.6; }
+        .error { color: #df1b41; opacity: 1; }
     </style>
 </head>
 <body>
-    <div id="payment-form-container">
-        <div class="header">
-            <h2 id="event-name"></h2>
-            <div class="amount" id="amount-display"></div>
-            <div class="description" id="ticket-info"></div>
-        </div>
-        <form id="payment-form">
-            <div id="payment-element"></div>
-            <button type="submit" id="pay-btn">Pay</button>
-            <div id="error-message"></div>
-        </form>
-    </div>
-    <div class="spinner" id="spinner"></div>
-    <div class="success" id="success">
-        <div class="check">✅</div>
-        <h2>Payment Confirmed!</h2>
-        <p>Your tickets will be sent to the chat.</p>
-    </div>
+    <div class="spinner"></div>
+    <p id="status">Redirecting to payment...</p>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.ready();
-        tg.expand();
 
         const params = new URLSearchParams(window.location.search);
         const orderId = params.get('order_id');
-        const eventName = params.get('event') || '';
-        const amount = params.get('amount') || '';
-        const currency = (params.get('currency') || 'ILS').toUpperCase();
-        const tickets = params.get('tickets') || '1';
-
-        document.getElementById('event-name').textContent = eventName;
-        try {
-            document.getElementById('amount-display').textContent =
-                new Intl.NumberFormat('en', { style: 'currency', currency: currency })
-                    .format(parseFloat(amount) || 0);
-        } catch(e) {
-            document.getElementById('amount-display').textContent = `${amount} ${currency}`;
-        }
-        document.getElementById('ticket-info').textContent = `${tickets} ticket(s)`;
-
         const apiBase = window.location.origin;
-        let stripe, elements, clientSecret;
-        const payBtn = document.getElementById('pay-btn');
-        const form = document.getElementById('payment-form');
 
         async function init() {
             try {
@@ -113,143 +55,17 @@
                 }
 
                 const data = await res.json();
-                clientSecret = data.client_secret;
 
-                stripe = Stripe(data.publishable_key);
-                elements = stripe.elements({
-                    clientSecret: clientSecret,
-                    appearance: {
-                        theme: tg.colorScheme === 'dark' ? 'night' : 'stripe',
-                        variables: {
-                            colorPrimary: tg.themeParams.button_color || '#007aff',
-                            borderRadius: '10px',
-                        },
-                    },
-                });
-
-                const paymentElement = elements.create('payment', {
-                    layout: 'tabs',
-                    fields: {
-                        billingDetails: {
-                            email: 'never',
-                            phone: 'never',
-                            address: 'never',
-                        },
-                    },
-                });
-                paymentElement.mount('#payment-element');
-
-                // Show pay button when element is ready
-                paymentElement.on('ready', () => {
-                    payBtn.style.display = 'block';
-                });
-
-                // Handle form submit
-                form.addEventListener('submit', handlePayment);
+                // Redirect to Stripe Checkout
+                window.location.href = data.checkout_url;
 
             } catch (err) {
-                showError(err.message);
+                document.getElementById('status').textContent = err.message;
+                document.getElementById('status').className = 'error';
             }
         }
 
-        async function handlePayment(e) {
-            e.preventDefault();
-            payBtn.disabled = true;
-            payBtn.textContent = 'Processing...';
-
-            // Step 1: Validate the Payment Element
-            const { error: submitError } = await elements.submit();
-            if (submitError) {
-                showError(submitError.message);
-                payBtn.disabled = false;
-                payBtn.textContent = 'Pay';
-                return;
-            }
-
-            // Step 2: Confirm the payment
-            const { error, paymentIntent } = await stripe.confirmPayment({
-                elements,
-                clientSecret: clientSecret,
-                confirmParams: {
-                    return_url: `${apiBase}/static/pay.html?order_id=${orderId}&status=complete`,
-                },
-                redirect: 'if_required',
-            });
-
-            if (error) {
-                showError(error.message);
-                payBtn.disabled = false;
-                payBtn.textContent = 'Pay';
-                return;
-            }
-
-            // Step 3: Payment succeeded — confirm with backend
-            show('spinner');
-
-            const paymentIntentId = clientSecret.split('_secret_')[0];
-
-            try {
-                const confirmRes = await fetch(`${apiBase}/api/payments/confirm`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        order_id: parseInt(orderId),
-                        payment_intent_id: paymentIntentId,
-                    }),
-                });
-
-                if (confirmRes.ok) {
-                    show('success');
-                    setTimeout(() => tg.close(), 2000);
-                } else {
-                    const err = await confirmRes.json();
-                    showError(err.detail || 'Confirmation failed');
-                }
-            } catch (err) {
-                showError(err.message);
-            }
-
-            payBtn.disabled = false;
-            payBtn.textContent = 'Pay';
-        }
-
-        // Check if returning from 3DS redirect
-        const status = params.get('status');
-        if (status === 'complete' && orderId) {
-            show('spinner');
-            const piId = params.get('payment_intent');
-            if (piId) {
-                fetch(`${apiBase}/api/payments/confirm`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        order_id: parseInt(orderId),
-                        payment_intent_id: piId,
-                    }),
-                }).then(r => {
-                    if (r.ok) { show('success'); setTimeout(() => tg.close(), 2000); }
-                    else { showError('Payment verification failed'); }
-                });
-            }
-        }
-
-        function showError(msg) {
-            const el = document.getElementById('error-message');
-            el.textContent = msg;
-            el.style.display = 'block';
-            setTimeout(() => { el.style.display = 'none'; }, 5000);
-        }
-
-        function show(id) {
-            document.getElementById('payment-form-container').style.display =
-                id === 'payment-form-container' ? 'block' : 'none';
-            document.getElementById('spinner').style.display =
-                id === 'spinner' ? 'block' : 'none';
-            document.getElementById('success').style.display =
-                id === 'success' ? 'block' : 'none';
-        }
-
-        if (status !== 'complete') init();
+        init();
     </script>
 </body>
 </html>
