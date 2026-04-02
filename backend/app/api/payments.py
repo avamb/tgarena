@@ -62,7 +62,7 @@ async def create_checkout_session(request: CreateSessionRequest):
 
         try:
             session = stripe.checkout.Session.create(
-                ui_mode="embedded",
+                ui_mode="embedded_page",
                 payment_method_types=["card"],
                 line_items=[{
                     "price_data": {
