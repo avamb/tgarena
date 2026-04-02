@@ -438,7 +438,7 @@ async def cmd_start(message: Message):
     deep_link_param = args[1] if len(args) > 1 else None
 
     # Handle paid_ deep link (return from payment)
-    if deep_link_param and deep_link_param.startswith("paid_"):
+    if deep_link_param and deep_link_param.startswith("paid"):
         try:
             from app.bot.purchase_handlers import handle_paid_return
         except ModuleNotFoundError:
