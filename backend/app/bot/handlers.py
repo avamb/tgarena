@@ -320,13 +320,18 @@ def build_events_list_message(
         # Calculate global event number on this page
         global_number = (page - 1) * EVENTS_PER_PAGE + i
 
+        # Get currency from event's actionEventList
+        ae_list = event.get("actionEventList", [])
+        currency = ae_list[0].get("currency", "") if ae_list else ""
+
         event_line = get_text(
             "event_list_item",
             lang,
             number=global_number,
             name=event_name[:50] + ("..." if len(event_name) > 50 else ""),
             date=event_date,
-            min_price=min_price
+            min_price=min_price,
+            currency=currency,
         )
         message_parts.append(event_line)
         message_parts.append("")  # Empty line between events
@@ -898,6 +903,10 @@ def build_event_details_message(event: Dict[str, Any], lang: str) -> str:
     max_price = event.get("maxPrice", min_price)
     age_restriction = event.get("age", event.get("ageRestriction", 0))
 
+    # Get currency from actionEventList
+    ae_list = event.get("actionEventList", [])
+    currency = ae_list[0].get("currency", "") if ae_list else ""
+
     age_text = get_age_restriction_text(age_restriction, lang)
 
     # Calculate countdown to event start
@@ -915,7 +924,8 @@ def build_event_details_message(event: Dict[str, Any], lang: str) -> str:
         min_price=min_price,
         max_price=max_price,
         age_restriction=age_text,
-        countdown=countdown_text
+        countdown=countdown_text,
+        currency=currency,
     )
 
 

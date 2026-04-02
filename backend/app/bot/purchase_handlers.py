@@ -180,14 +180,16 @@ async def handle_buy_ticket(callback: CallbackQuery, state: FSMContext):
                     )
                     return
 
+                session_currency = s.get("currency", "")
                 await state.update_data(
                     action_id=action_id,
                     action_name=event_name,
                     action_event_id=ae_id,
                     categories=categories,
+                    currency=session_currency,
                 )
                 await state.set_state(PurchaseStates.selecting_seats)
-                await _show_categories(callback, lang, ae_id, categories)
+                await _show_categories(callback, lang, ae_id, categories, currency=session_currency)
                 return
 
             # Multiple sessions — show selection
@@ -259,12 +261,12 @@ async def _show_categories(
     lang: str,
     action_event_id: int,
     categories: Dict[str, Dict[str, Any]],
+    currency: str = "",
 ):
     """Show category selection keyboard."""
     builder = InlineKeyboardBuilder()
     for cat_id, cat in categories.items():
         avail = cat["count"]
-        currency = "₽"
         builder.row(
             InlineKeyboardButton(
                 text=f"🎫 {cat['name']} — {cat['price']} {currency} ({avail} шт.)",
@@ -348,12 +350,14 @@ async def handle_select_session(callback: CallbackQuery, state: FSMContext):
         await state.clear()
         return
 
+    session_currency = session_info.get("currency", "") if session_info else ""
     await state.update_data(
         action_event_id=action_event_id,
         categories=categories,
+        currency=session_currency,
     )
     await state.set_state(PurchaseStates.selecting_seats)
-    await _show_categories(callback, lang, action_event_id, categories)
+    await _show_categories(callback, lang, action_event_id, categories, currency=session_currency)
 
 
 # =============================================================================
@@ -415,6 +419,7 @@ async def handle_select_category(callback: CallbackQuery, state: FSMContext):
             category=cat["name"],
             price=cat["price"],
             max_qty=max_qty,
+            currency=data.get("currency", ""),
         ),
         reply_markup=builder.as_markup(),
         parse_mode="HTML",
@@ -504,6 +509,7 @@ async def handle_select_quantity(callback: CallbackQuery, state: FSMContext):
                 quantity=quantity,
                 total=total_sum,
                 timeout_minutes=minutes_left,
+                currency=currency,
             )
 
             builder = InlineKeyboardBuilder()
@@ -663,6 +669,7 @@ async def handle_confirm_pay(callback: CallbackQuery, state: FSMContext):
                     "payment_redirect",
                     lang,
                     amount=data.get("total_sum", 0),
+                    currency=data.get("currency", ""),
                 ),
                 reply_markup=builder.as_markup(),
                 parse_mode="HTML",
