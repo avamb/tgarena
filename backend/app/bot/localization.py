@@ -31,7 +31,7 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         # Events
         "no_events": "К сожалению, мероприятий пока нет.",
         "events_list_title": "📋 <b>Доступные мероприятия</b>\n\nСтраница {page} из {total_pages}:",
-        "event_details": "<b>{name}</b>\n\n📅 Дата: {date}\n📍 Место: {venue}\n💰 Цена: от {min_price} до {max_price} ₽\n{age_restriction}{countdown}",
+        "event_details": "<b>{name}</b>\n\n📅 Дата: {date}\n📍 Место: {venue}\n💰 Цена: от {min_price} до {max_price} ₪\n{age_restriction}{countdown}",
 
         # Countdown
         "countdown_label": "\n⏳ До начала: {countdown}",
@@ -40,7 +40,7 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "countdown_minutes": "{count} мин.",
         "countdown_started": "Уже началось!",
         "countdown_starting_soon": "Скоро начало!",
-        "event_list_item": "{number}. <b>{name}</b>\n   📅 {date} | 💰 от {min_price} ₽",
+        "event_list_item": "{number}. <b>{name}</b>\n   📅 {date} | 💰 от {min_price} ₪",
         "btn_page_prev": "⬅️ Назад",
         "btn_page_next": "➡️ Вперед",
         "page_info": "Страница {page} из {total}",
@@ -52,14 +52,14 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
 
         # Tickets
         "no_tickets": "У вас пока нет билетов.",
-        "ticket_info": "🎫 <b>{event_name}</b>\n\n📅 {date}\n📍 {venue}\n🪑 {sector}, Ряд {row}, Место {seat}\n💰 {price} ₽",
+        "ticket_info": "🎫 <b>{event_name}</b>\n\n📅 {date}\n📍 {venue}\n🪑 {sector}, Ряд {row}, Место {seat}\n💰 {price} ₪",
         "btn_share_ticket": "📤 Поделиться билетом",
 
         # Order status notifications
-        "order_new": "📝 <b>Заказ #{order_id} создан</b>\n\nОжидаем оплаты...\nСумма: {amount} ₽",
-        "order_paid": "✅ <b>Заказ #{order_id} оплачен!</b>\n\nСумма: {amount} ₽\nВаши билеты будут отправлены в ближайшее время.",
+        "order_new": "📝 <b>Заказ #{order_id} создан</b>\n\nОжидаем оплаты...\nСумма: {amount} ₪",
+        "order_paid": "✅ <b>Заказ #{order_id} оплачен!</b>\n\nСумма: {amount} ₪\nВаши билеты будут отправлены в ближайшее время.",
         "order_cancelled": "❌ <b>Заказ #{order_id} отменён</b>",
-        "order_refunded": "💸 <b>Возврат по заказу #{order_id}</b>\n\nСумма возврата: {amount} ₽",
+        "order_refunded": "💸 <b>Возврат по заказу #{order_id}</b>\n\nСумма возврата: {amount} ₪",
 
         # Errors
         "error_general": "Произошла ошибка. Пожалуйста, попробуйте позже.",
@@ -77,14 +77,14 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         # Purchase flow
         "select_session": "🎫 <b>{event_name}</b>\n\nВыберите сеанс:",
         "select_category": "🎫 Выберите категорию билетов:",
-        "select_quantity": "🎫 <b>{category}</b> — {price} ₽\n\nВыберите количество (макс. {max_qty}):",
+        "select_quantity": "🎫 <b>{category}</b> — {price} ₪\n\nВыберите количество (макс. {max_qty}):",
         "reserving_seats": "⏳ Бронируем места...",
-        "cart_summary": "🛒 <b>Ваш заказ</b>\n\n🎫 {event_name}\n📋 {category} × {quantity}\n💰 Итого: <b>{total} ₽</b>\n\n⏳ Бронь действительна {timeout_minutes} мин.",
+        "cart_summary": "🛒 <b>Ваш заказ</b>\n\n🎫 {event_name}\n📋 {category} × {quantity}\n💰 Итого: <b>{total} ₪</b>\n\n⏳ Бронь действительна {timeout_minutes} мин.",
         "btn_pay": "💳 Оплатить",
         "btn_cancel_purchase": "❌ Отменить",
         "btn_open_payment": "💳 Перейти к оплате",
         "btn_check_payment": "🔄 Проверить оплату",
-        "payment_redirect": "💳 <b>Оплата</b>\n\nСумма: <b>{amount} ₽</b>\n\nНажмите кнопку ниже для перехода к оплате.\nПосле оплаты нажмите «Проверить оплату».",
+        "payment_redirect": "💳 <b>Оплата</b>\n\nСумма: <b>{amount} ₪</b>\n\nНажмите кнопку ниже для перехода к оплате.\nПосле оплаты нажмите «Проверить оплату».",
         "checking_payment": "Проверяем статус оплаты...",
         "payment_confirmed": "✅ <b>Оплата подтверждена!</b>\n\nБилеты будут отправлены в ближайшее время.",
         "payment_not_yet": "⏳ Оплата ещё не поступила. Попробуйте позже.",
@@ -127,7 +127,7 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         # Events
         "no_events": "Sorry, there are no events available at the moment.",
         "events_list_title": "📋 <b>Available Events</b>\n\nPage {page} of {total_pages}:",
-        "event_details": "<b>{name}</b>\n\n📅 Date: {date}\n📍 Venue: {venue}\n💰 Price: {min_price} - {max_price} ₽\n{age_restriction}{countdown}",
+        "event_details": "<b>{name}</b>\n\n📅 Date: {date}\n📍 Venue: {venue}\n💰 Price: {min_price} - {max_price} ₪\n{age_restriction}{countdown}",
 
         # Countdown
         "countdown_label": "\n⏳ Starts in: {countdown}",
@@ -136,7 +136,7 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "countdown_minutes": "{count}m",
         "countdown_started": "Started!",
         "countdown_starting_soon": "Starting soon!",
-        "event_list_item": "{number}. <b>{name}</b>\n   📅 {date} | 💰 from {min_price} ₽",
+        "event_list_item": "{number}. <b>{name}</b>\n   📅 {date} | 💰 from {min_price} ₪",
         "btn_page_prev": "⬅️ Previous",
         "btn_page_next": "➡️ Next",
         "page_info": "Page {page} of {total}",
@@ -148,14 +148,14 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
 
         # Tickets
         "no_tickets": "You don't have any tickets yet.",
-        "ticket_info": "🎫 <b>{event_name}</b>\n\n📅 {date}\n📍 {venue}\n🪑 {sector}, Row {row}, Seat {seat}\n💰 {price} ₽",
+        "ticket_info": "🎫 <b>{event_name}</b>\n\n📅 {date}\n📍 {venue}\n🪑 {sector}, Row {row}, Seat {seat}\n💰 {price} ₪",
         "btn_share_ticket": "📤 Share Ticket",
 
         # Order status notifications
-        "order_new": "📝 <b>Order #{order_id} created</b>\n\nAwaiting payment...\nAmount: {amount} ₽",
-        "order_paid": "✅ <b>Order #{order_id} paid!</b>\n\nAmount: {amount} ₽\nYour tickets will be sent shortly.",
+        "order_new": "📝 <b>Order #{order_id} created</b>\n\nAwaiting payment...\nAmount: {amount} ₪",
+        "order_paid": "✅ <b>Order #{order_id} paid!</b>\n\nAmount: {amount} ₪\nYour tickets will be sent shortly.",
         "order_cancelled": "❌ <b>Order #{order_id} cancelled</b>",
-        "order_refunded": "💸 <b>Refund for order #{order_id}</b>\n\nRefund amount: {amount} ₽",
+        "order_refunded": "💸 <b>Refund for order #{order_id}</b>\n\nRefund amount: {amount} ₪",
 
         # Errors
         "error_general": "An error occurred. Please try again later.",
@@ -173,14 +173,14 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         # Purchase flow
         "select_session": "🎫 <b>{event_name}</b>\n\nSelect a session:",
         "select_category": "🎫 Select ticket category:",
-        "select_quantity": "🎫 <b>{category}</b> — {price} ₽\n\nSelect quantity (max {max_qty}):",
+        "select_quantity": "🎫 <b>{category}</b> — {price} ₪\n\nSelect quantity (max {max_qty}):",
         "reserving_seats": "⏳ Reserving seats...",
-        "cart_summary": "🛒 <b>Your order</b>\n\n🎫 {event_name}\n📋 {category} × {quantity}\n💰 Total: <b>{total} ₽</b>\n\n⏳ Reservation valid for {timeout_minutes} min.",
+        "cart_summary": "🛒 <b>Your order</b>\n\n🎫 {event_name}\n📋 {category} × {quantity}\n💰 Total: <b>{total} ₪</b>\n\n⏳ Reservation valid for {timeout_minutes} min.",
         "btn_pay": "💳 Pay",
         "btn_cancel_purchase": "❌ Cancel",
         "btn_open_payment": "💳 Proceed to payment",
         "btn_check_payment": "🔄 Check payment",
-        "payment_redirect": "💳 <b>Payment</b>\n\nAmount: <b>{amount} ₽</b>\n\nClick the button below to proceed to payment.\nAfter paying, click «Check payment».",
+        "payment_redirect": "💳 <b>Payment</b>\n\nAmount: <b>{amount} ₪</b>\n\nClick the button below to proceed to payment.\nAfter paying, click «Check payment».",
         "checking_payment": "Checking payment status...",
         "payment_confirmed": "✅ <b>Payment confirmed!</b>\n\nYour tickets will be sent shortly.",
         "payment_not_yet": "⏳ Payment not received yet. Please try again later.",
