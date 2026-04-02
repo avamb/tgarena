@@ -18,7 +18,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: ["sh", "-c", "cd backend && python -m alembic upgrade head"]
+    command: ["python", "backend/run_migrations.py"]
     environment:
       - DATABASE_URL=${DATABASE_URL}
     depends_on:
