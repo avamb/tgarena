@@ -36,6 +36,20 @@
         .success .check { font-size: 48px; margin-bottom: 16px; }
         .success h2 { margin-bottom: 8px; }
         .success p { opacity: 0.6; font-size: 14px; }
+        #pay-btn {
+            display: none;
+            width: 100%;
+            padding: 14px;
+            margin-top: 16px;
+            background: var(--tg-theme-button-color, #007aff);
+            color: var(--tg-theme-button-text-color, #fff);
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        #pay-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -47,6 +61,7 @@
         </div>
         <form id="payment-form">
             <div id="payment-element"></div>
+            <button type="submit" id="pay-btn">Pay</button>
             <div id="error-message"></div>
         </form>
     </div>
@@ -70,13 +85,19 @@
         const tickets = params.get('tickets') || '1';
 
         document.getElementById('event-name').textContent = eventName;
-        document.getElementById('amount-display').textContent =
-            new Intl.NumberFormat('en', { style: 'currency', currency: currency })
-                .format(parseFloat(amount) || 0);
+        try {
+            document.getElementById('amount-display').textContent =
+                new Intl.NumberFormat('en', { style: 'currency', currency: currency })
+                    .format(parseFloat(amount) || 0);
+        } catch(e) {
+            document.getElementById('amount-display').textContent = `${amount} ${currency}`;
+        }
         document.getElementById('ticket-info').textContent = `${tickets} ticket(s)`;
 
         const apiBase = window.location.origin;
         let stripe, elements, clientSecret;
+        const payBtn = document.getElementById('pay-btn');
+        const form = document.getElementById('payment-form');
 
         async function init() {
             try {
@@ -118,40 +139,53 @@
                 });
                 paymentElement.mount('#payment-element');
 
-                tg.MainButton.setText('Pay');
-                tg.MainButton.color = tg.themeParams.button_color || '#007aff';
-                tg.MainButton.textColor = tg.themeParams.button_text_color || '#fff';
-                tg.MainButton.show();
-                tg.MainButton.onClick(handlePayment);
+                // Show pay button when element is ready
+                paymentElement.on('ready', () => {
+                    payBtn.style.display = 'block';
+                });
+
+                // Handle form submit
+                form.addEventListener('submit', handlePayment);
 
             } catch (err) {
                 showError(err.message);
             }
         }
 
-        async function handlePayment() {
-            tg.MainButton.showProgress();
-            tg.MainButton.disable();
+        async function handlePayment(e) {
+            e.preventDefault();
+            payBtn.disabled = true;
+            payBtn.textContent = 'Processing...';
 
+            // Step 1: Validate the Payment Element
+            const { error: submitError } = await elements.submit();
+            if (submitError) {
+                showError(submitError.message);
+                payBtn.disabled = false;
+                payBtn.textContent = 'Pay';
+                return;
+            }
+
+            // Step 2: Confirm the payment
             const { error, paymentIntent } = await stripe.confirmPayment({
                 elements,
+                clientSecret: clientSecret,
                 confirmParams: {
-                    return_url: window.location.href,
+                    return_url: `${apiBase}/static/pay.html?order_id=${orderId}&status=complete`,
                 },
                 redirect: 'if_required',
             });
 
             if (error) {
                 showError(error.message);
-                tg.MainButton.hideProgress();
-                tg.MainButton.enable();
+                payBtn.disabled = false;
+                payBtn.textContent = 'Pay';
                 return;
             }
 
-            // Payment succeeded
+            // Step 3: Payment succeeded — confirm with backend
             show('spinner');
 
-            // Extract payment_intent_id from clientSecret
             const paymentIntentId = clientSecret.split('_secret_')[0];
 
             try {
@@ -166,18 +200,36 @@
 
                 if (confirmRes.ok) {
                     show('success');
-                    tg.MainButton.hide();
                     setTimeout(() => tg.close(), 2000);
                 } else {
                     const err = await confirmRes.json();
                     showError(err.detail || 'Confirmation failed');
-                    tg.MainButton.hideProgress();
-                    tg.MainButton.enable();
                 }
             } catch (err) {
                 showError(err.message);
-                tg.MainButton.hideProgress();
-                tg.MainButton.enable();
+            }
+
+            payBtn.disabled = false;
+            payBtn.textContent = 'Pay';
+        }
+
+        // Check if returning from 3DS redirect
+        const status = params.get('status');
+        if (status === 'complete' && orderId) {
+            show('spinner');
+            const piId = params.get('payment_intent');
+            if (piId) {
+                fetch(`${apiBase}/api/payments/confirm`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        order_id: parseInt(orderId),
+                        payment_intent_id: piId,
+                    }),
+                }).then(r => {
+                    if (r.ok) { show('success'); setTimeout(() => tg.close(), 2000); }
+                    else { showError('Payment verification failed'); }
+                });
             }
         }
 
@@ -189,13 +241,15 @@
         }
 
         function show(id) {
-            document.getElementById('payment-form-container').style.display = 'none';
-            document.getElementById('spinner').style.display = 'none';
-            document.getElementById('success').style.display = 'none';
-            document.getElementById(id).style.display = 'block';
+            document.getElementById('payment-form-container').style.display =
+                id === 'payment-form-container' ? 'block' : 'none';
+            document.getElementById('spinner').style.display =
+                id === 'spinner' ? 'block' : 'none';
+            document.getElementById('success').style.display =
+                id === 'success' ? 'block' : 'none';
         }
 
-        init();
+        if (status !== 'complete') init();
     </script>
 </body>
 </html>
