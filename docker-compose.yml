@@ -15,12 +15,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: tg-ticket-agent-app
     restart: unless-stopped
     ports:
-      - "${PORT:-3000}:${PORT:-3000}"
+      - "${PORT:-3001}:${PORT:-3001}"
     environment:
-      - PORT=${PORT:-3000}
+      - PORT=${PORT:-3001}
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
@@ -38,7 +37,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-3000}/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-3001}/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -51,7 +50,6 @@ services:
   # ---------------------------------------------------------------------------
   postgres:
     image: postgres:15-alpine
-    container_name: tg-ticket-agent-postgres
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
@@ -72,7 +70,6 @@ services:
   # ---------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
-    container_name: tg-ticket-agent-redis
     restart: unless-stopped
     command: redis-server --appendonly yes
     volumes:
