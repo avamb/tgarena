@@ -67,6 +67,17 @@ def create_application() -> FastAPI:
     app.include_router(webhook_router, prefix="/api/webhooks", tags=["Webhooks"])
     app.include_router(widget_router, prefix="/api/widget", tags=["Widget"])
 
+    @app.get("/api/health")
+    async def health_check():
+        """Health check endpoint for Dokploy and monitoring."""
+        redis_connected = await ping_redis()
+        return {
+            "status": "ok",
+            "version": "0.1.0",
+            "environment": settings.ENV,
+            "redis": "connected" if redis_connected else "disconnected",
+        }
+
     admin_dist_dir = Path(__file__).resolve().parents[2] / "admin_dist"
 
     if admin_dist_dir.exists():
@@ -91,15 +102,3 @@ def create_application() -> FastAPI:
 
 
 app = create_application()
-
-
-@app.get("/api/health")
-async def health_check():
-    """Health check endpoint for Dokploy and monitoring."""
-    redis_connected = await ping_redis()
-    return {
-        "status": "ok",
-        "version": "0.1.0",
-        "environment": settings.ENV,
-        "redis": "connected" if redis_connected else "disconnected",
-    }
