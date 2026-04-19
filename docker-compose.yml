@@ -44,8 +44,22 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.routers.tgticketagent-tgdev-r8xtox-web.rule=Host(`tgtest.arenasoldout.com`)
+      - traefik.http.routers.tgticketagent-tgdev-r8xtox-web.entrypoints=web
+      - traefik.http.routers.tgticketagent-tgdev-r8xtox-web.middlewares=redirect-to-https@file
+      - traefik.http.routers.tgticketagent-tgdev-r8xtox-web.service=tgticketagent-tgdev-r8xtox-web
+      - traefik.http.routers.tgticketagent-tgdev-r8xtox-websecure.rule=Host(`tgtest.arenasoldout.com`)
+      - traefik.http.routers.tgticketagent-tgdev-r8xtox-websecure.entrypoints=websecure
+      - traefik.http.routers.tgticketagent-tgdev-r8xtox-websecure.tls.certresolver=letsencrypt
+      - traefik.http.routers.tgticketagent-tgdev-r8xtox-websecure.service=tgticketagent-tgdev-r8xtox-websecure
+      - traefik.http.services.tgticketagent-tgdev-r8xtox-web.loadbalancer.server.port=${PORT:-3001}
+      - traefik.http.services.tgticketagent-tgdev-r8xtox-websecure.loadbalancer.server.port=${PORT:-3001}
     networks:
       - tg-ticket-network
+      - dokploy-network
 
   # ---------------------------------------------------------------------------
   # PostgreSQL Database
@@ -93,3 +107,5 @@ volumes:
 networks:
   tg-ticket-network:
     driver: bridge
+  dokploy-network:
+    external: true
