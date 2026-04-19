@@ -20,6 +20,10 @@ interface AgentStats {
   users: number
   orders: number
   revenue: number
+  revenue_by_currency: Array<{
+    currency: string
+    amount: number
+  }>
 }
 
 interface AgentFormData {
@@ -56,6 +60,17 @@ export default function Agents() {
   const authToken = useAuthStore((state) => state.token)
   const logout = useAuthStore((state) => state.logout)
   const navigate = useNavigate()
+
+  const formatCurrency = (amount: number, currency: string) => {
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency,
+      }).format(amount)
+    } catch {
+      return `${currency} ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    }
+  }
 
   // Pagination state
   const [search, setSearch] = useState(searchParams.get('search') || '')
@@ -732,7 +747,21 @@ export default function Agents() {
                 </div>
                 <div className="bg-purple-50 rounded-lg p-4 text-center">
                   <DollarSign className="h-8 w-8 mx-auto text-purple-600 mb-2" />
-                  <p className="text-2xl font-bold text-purple-900">₽{agentStats.revenue.toLocaleString()}</p>
+                  {agentStats.revenue_by_currency.length <= 1 ? (
+                    <p className="text-2xl font-bold text-purple-900">
+                      {agentStats.revenue_by_currency[0]
+                        ? formatCurrency(agentStats.revenue_by_currency[0].amount, agentStats.revenue_by_currency[0].currency)
+                        : '0'}
+                    </p>
+                  ) : (
+                    <div className="space-y-1">
+                      {agentStats.revenue_by_currency.map((item) => (
+                        <p key={item.currency} className="text-sm font-bold text-purple-900">
+                          {formatCurrency(item.amount, item.currency)}
+                        </p>
+                      ))}
+                    </div>
+                  )}
                   <p className="text-sm text-purple-600">Revenue</p>
                 </div>
               </div>

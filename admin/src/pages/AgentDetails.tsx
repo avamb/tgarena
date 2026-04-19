@@ -19,6 +19,10 @@ interface AgentStats {
   users: number
   orders: number
   revenue: number
+  revenue_by_currency: Array<{
+    currency: string
+    amount: number
+  }>
 }
 
 export default function AgentDetails() {
@@ -28,6 +32,17 @@ export default function AgentDetails() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const authToken = useAuthStore((state) => state.token)
+
+  const formatCurrency = (amount: number, currency: string) => {
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency,
+      }).format(amount)
+    } catch {
+      return `${currency} ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    }
+  }
 
   useEffect(() => {
     if (id) {
@@ -209,9 +224,21 @@ export default function AgentDetails() {
               <DollarSign className="h-10 w-10 text-purple-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-purple-600">Revenue</p>
-                <p className="text-2xl font-bold text-purple-900">
-                  {stats.revenue.toLocaleString('ru-RU')}
-                </p>
+                {stats.revenue_by_currency.length <= 1 ? (
+                  <p className="text-2xl font-bold text-purple-900">
+                    {stats.revenue_by_currency[0]
+                      ? formatCurrency(stats.revenue_by_currency[0].amount, stats.revenue_by_currency[0].currency)
+                      : '0'}
+                  </p>
+                ) : (
+                  <div className="space-y-1">
+                    {stats.revenue_by_currency.map((item) => (
+                      <p key={item.currency} className="text-sm font-bold text-purple-900">
+                        {formatCurrency(item.amount, item.currency)}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>

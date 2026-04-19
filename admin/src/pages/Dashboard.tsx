@@ -17,9 +17,16 @@ interface DashboardStats {
   total_users: number
   total_orders: number
   total_revenue: number
+  revenue_by_currency: CurrencyBreakdown[]
   active_agents: number
   orders_today: number
   revenue_today: number
+  revenue_today_by_currency: CurrencyBreakdown[]
+}
+
+interface CurrencyBreakdown {
+  currency: string
+  amount: number
 }
 
 interface ChartDataPoint {
@@ -35,6 +42,7 @@ interface RecentOrder {
   agent_name: string
   status: string
   total_sum: number
+  currency: string
   ticket_count: number
   created_at: string
 }
@@ -51,6 +59,26 @@ export default function Dashboard() {
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
   const [ordersLoading, setOrdersLoading] = useState(true)
   const authToken = useAuthStore((state) => state.token)
+
+  const formatCurrency = (amount: number, currency: string) => {
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency,
+      }).format(amount)
+    } catch {
+      return `${currency} ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    }
+  }
+
+  const formatRevenueSummary = (breakdown: CurrencyBreakdown[]) => {
+    if (!breakdown.length) return ['0']
+    if (breakdown.length === 1) {
+      const item = breakdown[0]
+      return [formatCurrency(item.amount, item.currency)]
+    }
+    return breakdown.map((item) => formatCurrency(item.amount, item.currency))
+  }
 
   // Fetch dashboard stats
   useEffect(() => {
@@ -78,9 +106,11 @@ export default function Dashboard() {
           total_users: 0,
           total_orders: 0,
           total_revenue: 0,
+          revenue_by_currency: [],
           active_agents: 0,
           orders_today: 0,
           revenue_today: 0,
+          revenue_today_by_currency: [],
         })
       } finally {
         setLoading(false)
@@ -195,7 +225,7 @@ export default function Dashboard() {
   const statsConfig = [
     { name: 'Total Users', value: stats?.total_users ?? 0, icon: Users, color: 'bg-blue-500' },
     { name: 'Total Orders', value: stats?.total_orders ?? 0, icon: ShoppingCart, color: 'bg-green-500' },
-    { name: 'Revenue', value: `₽${stats?.total_revenue ?? 0}`, icon: DollarSign, color: 'bg-yellow-500' },
+    { name: 'Revenue', value: formatRevenueSummary(stats?.revenue_by_currency ?? []), icon: DollarSign, color: 'bg-yellow-500' },
     { name: 'Active Agents', value: stats?.active_agents ?? 0, icon: Activity, color: 'bg-purple-500' },
   ]
 
@@ -215,6 +245,12 @@ export default function Dashboard() {
                 <p className="text-sm font-medium text-gray-500">{stat.name}</p>
                 {loading ? (
                   <Loader2 className="h-6 w-6 text-gray-400 animate-spin mt-1" />
+                ) : Array.isArray(stat.value) ? (
+                  <div className="mt-1 space-y-1">
+                    {stat.value.map((value) => (
+                      <p key={value} className="text-sm font-semibold text-gray-900">{value}</p>
+                    ))}
+                  </div>
                 ) : (
                   <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
                 )}
@@ -266,7 +302,9 @@ export default function Dashboard() {
                         {order.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">₽{order.total_sum.toLocaleString()}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                      {formatCurrency(order.total_sum, order.currency)}
+                    </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                       {new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </td>
@@ -345,7 +383,7 @@ export default function Dashboard() {
                   tick={{ fontSize: 12 }}
                   tickLine={false}
                   axisLine={{ stroke: '#e5e7eb' }}
-                  label={{ value: 'Revenue (₽)', angle: 90, position: 'insideRight', fontSize: 12 }}
+                  label={{ value: 'Revenue', angle: 90, position: 'insideRight', fontSize: 12 }}
                 />
                 <Tooltip
                   contentStyle={{
@@ -354,7 +392,7 @@ export default function Dashboard() {
                     borderRadius: '8px',
                   }}
                   formatter={(value: number, name: string) => [
-                    name === 'revenue' ? `₽${value.toLocaleString()}` : value,
+                    name === 'revenue' ? value.toLocaleString() : value,
                     name === 'revenue' ? 'Revenue' : 'Orders'
                   ]}
                 />

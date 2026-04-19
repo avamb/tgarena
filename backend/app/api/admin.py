@@ -151,13 +151,20 @@ class OrderDetailResponse(BaseModel):
     tickets: List[TicketResponse]
 
 
+class CurrencyBreakdownItem(BaseModel):
+    currency: str
+    amount: float
+
+
 class DashboardStats(BaseModel):
     total_users: int
     total_orders: int
     total_revenue: float
+    revenue_by_currency: List[CurrencyBreakdownItem]
     active_agents: int
     orders_today: int
     revenue_today: float
+    revenue_today_by_currency: List[CurrencyBreakdownItem]
 
 
 # =============================================================================
@@ -180,6 +187,19 @@ def agent_to_response(agent: AgentModel) -> AgentResponse:
         created_at=agent.created_at,
         deep_link=f"https://t.me/{bot_username}?start=agent_{agent.id}",
     )
+
+
+def _serialize_currency_breakdown(rows) -> List[CurrencyBreakdownItem]:
+    """Normalize aggregated revenue rows into API-friendly currency breakdown."""
+    breakdown = []
+    for currency, amount in rows:
+        breakdown.append(
+            CurrencyBreakdownItem(
+                currency=currency or "UNK",
+                amount=float(amount or 0),
+            )
+        )
+    return breakdown
 
 
 # =============================================================================
@@ -414,6 +434,7 @@ class AgentStatsResponse(BaseModel):
     users: int
     orders: int
     revenue: float
+    revenue_by_currency: List[CurrencyBreakdownItem]
 
 
 @admin_router.get("/agents/{agent_id}/stats", response_model=AgentStatsResponse)
@@ -455,10 +476,25 @@ async def get_agent_stats(
     )
     revenue_total = float(revenue_result.scalar() or 0)
 
+    revenue_by_currency_result = await db.execute(
+        select(
+            OrderModel.currency,
+            func.coalesce(func.sum(OrderModel.total_sum), 0),
+        )
+        .where(
+            OrderModel.agent_id == agent_id,
+            OrderModel.status == "PAID",
+        )
+        .group_by(OrderModel.currency)
+        .order_by(OrderModel.currency)
+    )
+    revenue_by_currency = _serialize_currency_breakdown(revenue_by_currency_result.all())
+
     return AgentStatsResponse(
         users=users_count,
         orders=orders_count,
         revenue=revenue_total,
+        revenue_by_currency=revenue_by_currency,
     )
 
 
@@ -586,6 +622,7 @@ class OrderListItem(BaseModel):
     bil24_order_id: int
     status: str
     total_sum: float
+    currency: str
     ticket_count: int
     created_at: datetime
     paid_at: Optional[datetime]
@@ -678,6 +715,7 @@ async def list_orders(
             bil24_order_id=order.bil24_order_id,
             status=order.status,
             total_sum=float(order.total_sum),
+            currency=order.currency,
             ticket_count=order.ticket_count,
             created_at=order.created_at,
             paid_at=order.paid_at,
@@ -979,6 +1017,16 @@ async def get_dashboard_stats(
     revenue_result = await db.execute(select(func.sum(OrderModel.total_sum)))
     total_revenue = float(revenue_result.scalar() or 0)
 
+    revenue_by_currency_result = await db.execute(
+        select(
+            OrderModel.currency,
+            func.coalesce(func.sum(OrderModel.total_sum), 0),
+        )
+        .group_by(OrderModel.currency)
+        .order_by(OrderModel.currency)
+    )
+    revenue_by_currency = _serialize_currency_breakdown(revenue_by_currency_result.all())
+
     # Get today's orders and revenue
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     orders_today_result = await db.execute(
@@ -991,13 +1039,26 @@ async def get_dashboard_stats(
     )
     revenue_today = float(revenue_today_result.scalar() or 0)
 
+    revenue_today_by_currency_result = await db.execute(
+        select(
+            OrderModel.currency,
+            func.coalesce(func.sum(OrderModel.total_sum), 0),
+        )
+        .where(OrderModel.created_at >= today_start)
+        .group_by(OrderModel.currency)
+        .order_by(OrderModel.currency)
+    )
+    revenue_today_by_currency = _serialize_currency_breakdown(revenue_today_by_currency_result.all())
+
     return DashboardStats(
         total_users=total_users,
         total_orders=total_orders,
         total_revenue=total_revenue,
+        revenue_by_currency=revenue_by_currency,
         active_agents=active_agents,
         orders_today=orders_today,
         revenue_today=revenue_today,
+        revenue_today_by_currency=revenue_today_by_currency,
     )
 
 
@@ -1027,6 +1088,7 @@ async def get_recent_orders(
             "agent_name": agent.name,
             "status": order.status,
             "total_sum": float(order.total_sum),
+            "currency": order.currency,
             "ticket_count": order.ticket_count,
             "created_at": order.created_at.isoformat(),
         })

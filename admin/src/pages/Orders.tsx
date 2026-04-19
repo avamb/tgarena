@@ -20,6 +20,7 @@ interface Order {
   status: string
   ticket_count: number
   total_sum: number
+  currency: string
   created_at: string
   paid_at: string | null
 }
@@ -188,11 +189,15 @@ export default function Orders() {
     })
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('ru-RU', {
-      style: 'currency',
-      currency: 'RUB',
-    }).format(amount)
+  const formatCurrency = (amount: number, currency: string) => {
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency,
+      }).format(amount)
+    } catch {
+      return `${currency} ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    }
   }
 
   // Export orders to CSV
@@ -220,7 +225,7 @@ export default function Orders() {
       }
 
       // Generate CSV content
-      const headers = ['Order ID', 'Bill24 ID', 'User ID', 'User Name', 'Agent ID', 'Agent Name', 'Status', 'Tickets', 'Total Amount', 'Date', 'Paid At']
+      const headers = ['Order ID', 'Bill24 ID', 'User ID', 'User Name', 'Agent ID', 'Agent Name', 'Status', 'Tickets', 'Total Amount', 'Currency', 'Date', 'Paid At']
       const csvRows = [headers.join(',')]
 
       ordersToExport.forEach((order: Order) => {
@@ -234,6 +239,7 @@ export default function Orders() {
           order.status,
           order.ticket_count,
           order.total_sum,
+          order.currency,
           order.created_at,
           order.paid_at || ''
         ]
@@ -429,7 +435,7 @@ export default function Orders() {
                       </span>
                     </td>
                     <td>{order.ticket_count}</td>
-                    <td>{formatCurrency(order.total_sum)}</td>
+                    <td>{formatCurrency(order.total_sum, order.currency)}</td>
                     <td className="text-sm text-gray-500">{formatDate(order.created_at)}</td>
                   </tr>
                 ))}
