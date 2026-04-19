@@ -4,10 +4,12 @@ TG-Ticket-Agent FastAPI Application Entry Point
 
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncGenerator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 try:
     # When running from backend directory (e.g., uvicorn app.main:app)
@@ -64,6 +66,26 @@ def create_application() -> FastAPI:
     app.include_router(admin_router, prefix="/api/admin", tags=["Admin"])
     app.include_router(webhook_router, prefix="/api/webhooks", tags=["Webhooks"])
     app.include_router(widget_router, prefix="/api/widget", tags=["Widget"])
+
+    admin_dist_dir = Path(__file__).resolve().parents[2] / "admin_dist"
+
+    if admin_dist_dir.exists():
+        admin_dist_root = admin_dist_dir.resolve()
+
+        @app.get("/", include_in_schema=False)
+        async def serve_admin_index():
+            return FileResponse(admin_dist_dir / "index.html")
+
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def serve_admin_spa(full_path: str):
+            if full_path in {"api", "static"} or full_path.startswith(("api/", "static/")):
+                raise HTTPException(status_code=404, detail="Not Found")
+
+            requested_path = (admin_dist_dir / full_path).resolve()
+            if full_path and requested_path.is_file() and admin_dist_root in requested_path.parents:
+                return FileResponse(requested_path)
+
+            return FileResponse(admin_dist_dir / "index.html")
 
     return app
 

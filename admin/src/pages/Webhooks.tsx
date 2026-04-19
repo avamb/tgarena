@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react'
 import { Save, TestTube, History, CheckCircle, XCircle, RefreshCw, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../store/auth'
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+import { apiUrl } from '../api'
 
 interface WebhookConfig {
   url: string
@@ -49,8 +48,12 @@ export default function Webhooks() {
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<WebhookTestResult | null>(null)
 
-  const getAuthHeader = () => {
-    return token ? { Authorization: `Bearer ${token}` } : {}
+  const getAuthHeader = (): HeadersInit => {
+    if (!token) {
+      return {}
+    }
+
+    return { Authorization: `Bearer ${token}` }
   }
 
   // Fetch webhook configuration on mount
@@ -67,7 +70,7 @@ export default function Webhooks() {
 
   const fetchConfig = async () => {
     try {
-      const response = await fetch(`${API_BASE}/webhooks/config`, {
+      const response = await fetch(apiUrl('/api/webhooks/config'), {
         headers: getAuthHeader(),
       })
       if (response.ok) {
@@ -88,7 +91,7 @@ export default function Webhooks() {
   const fetchLogs = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/webhooks/logs`, {
+      const response = await fetch(apiUrl('/api/webhooks/logs'), {
         headers: getAuthHeader(),
       })
       if (response.ok) {
@@ -109,7 +112,7 @@ export default function Webhooks() {
         .filter(([, enabled]) => enabled)
         .map(([event]) => event)
 
-      const response = await fetch(`${API_BASE}/webhooks/config`, {
+      const response = await fetch(apiUrl('/api/webhooks/config'), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -146,7 +149,7 @@ export default function Webhooks() {
     setTestResult(null)
 
     try {
-      const response = await fetch(`${API_BASE}/webhooks/test`, {
+      const response = await fetch(apiUrl('/api/webhooks/test'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

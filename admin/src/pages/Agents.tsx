@@ -3,6 +3,7 @@ import { Plus, Edit, Trash2, Copy, X, Save, Loader2, BarChart3, Users, ShoppingC
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../store/auth'
 import { useBlocker, useNavigate, Link, useSearchParams } from 'react-router-dom'
+import { apiUrl } from '../api'
 
 interface Agent {
   id: number
@@ -63,7 +64,7 @@ export default function Agents() {
   const [totalAgents, setTotalAgents] = useState(0)
   const pageSize = 10
   const isInitialMount = useRef(true)
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Handle 401 unauthorized - session expired
   const handleUnauthorized = useCallback(() => {
@@ -121,7 +122,7 @@ export default function Agents() {
       params.set('page_size', pageSize.toString())
       if (search) params.set('search', search)
 
-      const response = await fetch(`http://localhost:8000/api/admin/agents?${params.toString()}`, {
+      const response = await fetch(apiUrl(`/api/admin/agents?${params.toString()}`), {
         headers: {
           'Authorization': `Bearer ${authToken}`,
         },
@@ -179,7 +180,7 @@ export default function Agents() {
     setAgentStats(null)
 
     try {
-      const response = await fetch(`http://localhost:8000/api/admin/agents/${agent.id}/stats`, {
+      const response = await fetch(apiUrl(`/api/admin/agents/${agent.id}/stats`), {
         headers: {
           'Authorization': `Bearer ${authToken}`,
         },
@@ -239,8 +240,8 @@ export default function Agents() {
     setLoading(true)
     try {
       const url = editingAgent
-        ? `http://localhost:8000/api/admin/agents/${editingAgent.id}`
-        : 'http://localhost:8000/api/admin/agents'
+        ? apiUrl(`/api/admin/agents/${editingAgent.id}`)
+        : apiUrl('/api/admin/agents')
 
       const response = await fetch(url, {
         method: editingAgent ? 'PUT' : 'POST',
@@ -302,7 +303,7 @@ export default function Agents() {
     }
 
     try {
-      const response = await fetch(`http://localhost:8000/api/admin/agents/${agent.id}`, {
+      const response = await fetch(apiUrl(`/api/admin/agents/${agent.id}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${authToken}`,

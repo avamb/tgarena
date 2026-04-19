@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, MessageCircle, User as UserIcon, Calendar, Globe, Loader2, AlertCircle } from 'lucide-react'
 import { useAuthStore } from '../store/auth'
+import { apiUrl } from '../api'
 
 interface User {
   id: number
@@ -38,7 +39,7 @@ export default function UserDetails() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`http://localhost:8000/api/admin/users/${id}`, {
+      const response = await fetch(apiUrl(`/api/admin/users/${id}`), {
         headers: {
           'Authorization': `Bearer ${authToken}`,
         },
@@ -67,7 +68,7 @@ export default function UserDetails() {
 
   const fetchAgent = async (agentId: number) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/admin/agents/${agentId}`, {
+      const response = await fetch(apiUrl(`/api/admin/agents/${agentId}`), {
         headers: {
           'Authorization': `Bearer ${authToken}`,
         },
