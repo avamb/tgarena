@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Users, ShoppingCart, DollarSign, Activity, Loader2 } from 'lucide-react'
 import { useAuthStore } from '../store/auth'
+import { apiUrl } from '../api'
 import {
   LineChart,
   Line,
@@ -57,7 +58,7 @@ export default function Dashboard() {
       try {
         setLoading(true)
         setError(null)
-        const response = await fetch('http://localhost:8000/api/admin/dashboard/stats', {
+        const response = await fetch(apiUrl('/api/admin/dashboard/stats'), {
           headers: {
             'Authorization': `Bearer ${authToken}`,
           },
@@ -96,7 +97,7 @@ export default function Dashboard() {
     const fetchRecentOrders = async () => {
       try {
         setOrdersLoading(true)
-        const response = await fetch('http://localhost:8000/api/admin/dashboard/recent-orders?limit=5', {
+        const response = await fetch(apiUrl('/api/admin/dashboard/recent-orders?limit=5'), {
           headers: {
             'Authorization': `Bearer ${authToken}`,
           },
@@ -123,7 +124,7 @@ export default function Dashboard() {
     const fetchChartData = async () => {
       try {
         setChartLoading(true)
-        const response = await fetch(`http://localhost:8000/api/admin/dashboard/sales-chart?period=${chartPeriod}`, {
+        const response = await fetch(apiUrl(`/api/admin/dashboard/sales-chart?period=${chartPeriod}`), {
           headers: {
             'Authorization': `Bearer ${authToken}`,
           },

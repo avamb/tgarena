@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Search, Filter, Loader2, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../store/auth'
+import { apiUrl } from '../api'
 
 interface Agent {
   id: number
@@ -47,7 +48,7 @@ export default function Users() {
     const fetchAgents = async () => {
       try {
         // Fetch all agents (set high page_size to get all in one request)
-        const response = await fetch('http://localhost:8000/api/admin/agents?page_size=1000', {
+        const response = await fetch(apiUrl('/api/admin/agents?page_size=1000'), {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -79,7 +80,7 @@ export default function Users() {
         params.append('agent_id', selectedAgentId)
       }
 
-      const url = `http://localhost:8000/api/admin/users${params.toString() ? '?' + params.toString() : ''}`
+      const url = apiUrl(`/api/admin/users${params.toString() ? '?' + params.toString() : ''}`)
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`,

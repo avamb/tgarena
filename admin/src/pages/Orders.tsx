@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom'
 import { Search, Download, Loader2, X, ChevronLeft, ChevronRight, AlertCircle, ShoppingCart } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../store/auth'
+import { apiUrl } from '../api'
 
 interface Agent {
   id: number
@@ -79,7 +80,7 @@ export default function Orders() {
   useEffect(() => {
     const fetchAgents = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/admin/agents', {
+        const response = await fetch(apiUrl('/api/admin/agents'), {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -113,7 +114,7 @@ export default function Orders() {
         params.set('page', currentPage.toString())
         params.set('page_size', pageSize.toString())
 
-        const response = await fetch(`http://localhost:8000/api/admin/orders?${params.toString()}`, {
+        const response = await fetch(apiUrl(`/api/admin/orders?${params.toString()}`), {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -206,7 +207,7 @@ export default function Orders() {
       if (search) params.set('search', search)
       params.set('page_size', '1000') // Get more orders for export
 
-      const response = await fetch(`http://localhost:8000/api/admin/orders?${params.toString()}`, {
+      const response = await fetch(apiUrl(`/api/admin/orders?${params.toString()}`), {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

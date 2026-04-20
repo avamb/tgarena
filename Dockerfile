@@ -4,7 +4,24 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# Stage 1: Build dependencies
+# Stage 1: Build admin frontend
+# -----------------------------------------------------------------------------
+FROM node:18-alpine as admin-builder
+
+WORKDIR /app/admin
+
+COPY admin/package*.json ./
+RUN npm ci
+
+COPY admin/ ./
+
+ARG VITE_API_URL
+ENV VITE_API_URL=${VITE_API_URL}
+
+RUN npm run build
+
+# -----------------------------------------------------------------------------
+# Stage 2: Build Python dependencies
 # -----------------------------------------------------------------------------
 FROM python:3.11-slim as builder
 
@@ -26,7 +43,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # -----------------------------------------------------------------------------
-# Stage 2: Production image
+# Stage 3: Production image
 # -----------------------------------------------------------------------------
 FROM python:3.11-slim as production
 
@@ -42,9 +59,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy application code (cache-bust: 2026-04-02)
+# Copy application code
 COPY backend/ ./backend/
 COPY bot/ ./bot/
+COPY --from=admin-builder /app/admin/dist/ ./admin_dist/
 
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash appuser && \
@@ -54,7 +72,7 @@ USER appuser
 # Environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PORT=3000
+    PORT=3001
 
 # Expose port (read from environment)
 EXPOSE ${PORT}

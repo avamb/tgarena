@@ -39,7 +39,8 @@ class TestStartCommandHandler:
         message.from_user.language_code = "en"
         message.answer = AsyncMock()
 
-        with patch('app.bot.handlers.get_async_session') as mock_session_gen:
+        with patch('app.bot.handlers.get_async_session') as mock_session_gen, \
+             patch('app.bot.handlers.fetch_events_from_bill24', new=AsyncMock(return_value=[])):
             mock_session = AsyncMock()
             mock_result = MagicMock()
             mock_user = MagicMock()
@@ -174,7 +175,7 @@ class TestLanguageDetection:
             await cmd_start(message)
 
             message.answer.assert_called()
-            call_args = message.answer.call_args
+            call_args = message.answer.call_args_list[0]
             sent_text = call_args[0][0]
 
             expected_en = get_text("welcome", "en")
@@ -188,7 +189,6 @@ class TestStartWithDeepLink:
     async def test_start_with_agent_deep_link(self):
         """Test /start with agent deep link shows agent welcome."""
         from app.bot.handlers import cmd_start
-        from app.bot.localization import get_text
 
         message = AsyncMock()
         message.text = "/start agent_1271"  # Deep link with agent FID
@@ -205,7 +205,8 @@ class TestStartWithDeepLink:
         mock_agent.is_active = True
         mock_agent.id = 1
 
-        with patch('app.bot.handlers.get_async_session') as mock_session_gen:
+        with patch('app.bot.handlers.get_async_session') as mock_session_gen, \
+             patch('app.bot.handlers.fetch_events_from_bill24', new=AsyncMock(return_value=[])):
             mock_session = AsyncMock()
 
             call_count = [0]
@@ -233,7 +234,7 @@ class TestStartWithDeepLink:
             await cmd_start(message)
 
             message.answer.assert_called()
-            call_args = message.answer.call_args
+            call_args = message.answer.call_args_list[0]
             sent_text = call_args[0][0]
 
             # Should include agent name
@@ -328,9 +329,13 @@ class TestNewUserCreation:
         mock_result.scalar_one_or_none.return_value = None  # No existing user
         mock_session.execute.return_value = mock_result
 
-        with patch('app.bot.handlers.User') as MockUser:
+        with patch('app.bot.handlers.User') as MockUser, \
+             patch('app.bot.handlers.select') as mock_select:
             mock_user_instance = MagicMock()
             MockUser.return_value = mock_user_instance
+            mock_stmt = MagicMock()
+            mock_stmt.where.return_value = mock_stmt
+            mock_select.return_value = mock_stmt
 
             await get_or_create_user(mock_session, message)
 

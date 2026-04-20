@@ -12,7 +12,7 @@ import os
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from app.bot.handlers import parse_deep_link
+from app.bot.handlers import extract_agent_deep_link_param, parse_deep_link
 
 
 class TestDeepLinkParsing:
@@ -60,6 +60,52 @@ class TestDeepLinkParsing:
 
         assert result == 1271
 
+    def test_extract_param_from_start_command(self):
+        """Test extracting deep link from /start command."""
+        assert extract_agent_deep_link_param("/start agent_1271") == "agent_1271"
+
+    def test_extract_param_from_raw_agent_payload(self):
+        """Test extracting deep link from raw agent payload."""
+        assert extract_agent_deep_link_param("agent_1271") == "agent_1271"
+
+    def test_extract_param_from_t_me_url(self):
+        """Test extracting deep link from t.me URL."""
+        assert extract_agent_deep_link_param("https://t.me/ArenaAppTestZone_bot?start=agent_1271") == "agent_1271"
+
+    def test_extract_param_ignores_unrelated_text(self):
+        """Test extractor returns None for unrelated text."""
+        assert extract_agent_deep_link_param("hello world") is None
+
+
+class TestRawDeepLinkMessages:
+    """Test raw deep-link payload handling outside /start."""
+
+    @pytest.mark.asyncio
+    async def test_raw_agent_message_routes_to_start_flow(self):
+        """Raw agent text should reuse the start flow."""
+        from app.bot.handlers import msg_agent_deep_link
+
+        message = AsyncMock()
+        message.text = "agent_1271"
+
+        with patch("app.bot.handlers._handle_start_message", new=AsyncMock()) as mock_handle:
+            await msg_agent_deep_link(message)
+
+        mock_handle.assert_awaited_once_with(message, deep_link_param="agent_1271")
+
+    @pytest.mark.asyncio
+    async def test_t_me_url_routes_to_start_flow(self):
+        """Pasted t.me URL should reuse the start flow."""
+        from app.bot.handlers import msg_agent_deep_link_url
+
+        message = AsyncMock()
+        message.text = "https://t.me/ArenaAppTestZone_bot?start=agent_1271"
+
+        with patch("app.bot.handlers._handle_start_message", new=AsyncMock()) as mock_handle:
+            await msg_agent_deep_link_url(message)
+
+        mock_handle.assert_awaited_once_with(message, deep_link_param="agent_1271")
+
 
 class TestUserAgentLinking:
     """Test user is linked to agent on deep link."""
@@ -89,7 +135,8 @@ class TestUserAgentLinking:
         mock_agent.name = "Test Agent"
         mock_agent.is_active = True
 
-        with patch('app.bot.handlers.get_async_session') as mock_session_gen:
+        with patch('app.bot.handlers.get_async_session') as mock_session_gen, \
+             patch('app.bot.handlers.fetch_events_from_bill24', new=AsyncMock(return_value=[])):
             mock_session = AsyncMock()
 
             call_count = [0]
@@ -167,7 +214,7 @@ class TestDeepLinkWelcome:
 
             await cmd_start(message)
 
-            call_args = message.answer.call_args
+            call_args = message.answer.call_args_list[0]
             sent_text = call_args[0][0]
 
             # Should include agent name
@@ -197,7 +244,8 @@ class TestInvalidDeepLink:
         mock_user.preferred_language = "en"
         mock_user.current_agent_id = None
 
-        with patch('app.bot.handlers.get_async_session') as mock_session_gen:
+        with patch('app.bot.handlers.get_async_session') as mock_session_gen, \
+             patch('app.bot.handlers.fetch_events_from_bill24', new=AsyncMock(return_value=[])):
             mock_session = AsyncMock()
 
             call_count = [0]
@@ -376,8 +424,8 @@ class TestDeepLinkKeyboard:
 
             await cmd_start(message)
 
-            # Check keyboard was passed
-            call_kwargs = message.answer.call_args[1]
+            loading_message = message.answer.return_value
+            call_kwargs = loading_message.edit_text.call_args[1]
             assert "reply_markup" in call_kwargs
 
             keyboard = call_kwargs["reply_markup"]

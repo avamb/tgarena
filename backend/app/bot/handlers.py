@@ -114,6 +114,36 @@ def parse_deep_link(text: str) -> Optional[int]:
     return None
 
 
+def extract_agent_deep_link_param(text: Optional[str]) -> Optional[str]:
+    """
+    Extract `agent_<id>` payload from different user-visible inputs.
+
+    Supported forms:
+    - `/start agent_68`
+    - `agent_68`
+    - `https://t.me/<bot>?start=agent_68`
+    """
+    if not text:
+        return None
+
+    stripped = text.strip()
+
+    parts = stripped.split(maxsplit=1)
+    if parts and parts[0].startswith("/start") and len(parts) > 1:
+        candidate = parts[1].strip()
+        if parse_deep_link(candidate) is not None:
+            return candidate
+
+    if parse_deep_link(stripped) is not None:
+        return stripped
+
+    match = re.search(r"(?:\?|&)start=(agent_\d+)\b", stripped)
+    if match and parse_deep_link(match.group(1)) is not None:
+        return match.group(1)
+
+    return None
+
+
 def get_main_keyboard(lang: str = "ru", has_agent: bool = False) -> InlineKeyboardMarkup:
     """Get main menu keyboard."""
     builder = InlineKeyboardBuilder()
@@ -420,24 +450,14 @@ def get_page_events(events: List[Dict[str, Any]], page: int) -> Tuple[List[Dict[
     return events[start_idx:end_idx], total_pages
 
 
-@router.message(CommandStart())
-async def cmd_start(message: Message):
-    """
-    Handle /start command with optional deep link.
-
-    Deep link format: t.me/BotUsername?start=agent_12345
-
-    When user comes via agent deep link, automatically loads events using get_all_actions.
-    If API doesn't return events, displays a message that no events are found.
-    """
+async def _handle_start_message(message: Message, deep_link_param: Optional[str] = None) -> None:
+    """Shared start flow for `/start`, raw `agent_<id>`, and pasted t.me links."""
     telegram_user = message.from_user
     lang = get_user_language(telegram_user.language_code if telegram_user else None)
 
-    # Parse deep link parameter
-    args = message.text.split(maxsplit=1)
-    deep_link_param = args[1] if len(args) > 1 else None
+    deep_link_param = deep_link_param or extract_agent_deep_link_param(message.text)
+    logger.info("Start flow received text=%r deep_link_param=%r", message.text, deep_link_param)
 
-    # Handle paid_ deep link (return from payment)
     if deep_link_param and deep_link_param.startswith("paid"):
         try:
             from app.bot.purchase_handlers import handle_paid_return
@@ -585,6 +605,32 @@ async def cmd_start(message: Message):
                     get_text("welcome", lang),
                     reply_markup=get_main_keyboard(lang, has_agent=False)
                 )
+
+
+@router.message(CommandStart())
+async def cmd_start(message: Message):
+    """
+    Handle /start command with optional deep link.
+
+    Deep link format: t.me/BotUsername?start=agent_12345
+
+    When user comes via agent deep link, automatically loads events using get_all_actions.
+    If API doesn't return events, displays a message that no events are found.
+    """
+    args = message.text.split(maxsplit=1)
+    deep_link_param = args[1] if len(args) > 1 else None
+    await _handle_start_message(message, deep_link_param=deep_link_param)
+
+@router.message(F.text.regexp(r"^\s*agent_\d+\s*$"))
+async def msg_agent_deep_link(message: Message):
+    """Handle raw `agent_<id>` payloads sent by the client/user."""
+    await _handle_start_message(message, deep_link_param=message.text.strip())
+
+
+@router.message(F.text.regexp(r"^\s*(?:https?://)?t\.me/[^\s?]+\?start=agent_\d+\s*$"))
+async def msg_agent_deep_link_url(message: Message):
+    """Handle pasted Telegram deep-link URLs."""
+    await _handle_start_message(message, deep_link_param=extract_agent_deep_link_param(message.text))
 
 
 @router.message(Command("help"))
@@ -896,15 +942,25 @@ async def callback_events_page(callback: CallbackQuery):
 def build_event_details_message(event: Dict[str, Any], lang: str) -> str:
     """Build formatted message for event details."""
     event_name = event.get("fullActionName", event.get("actionName", "Unknown"))
-    event_date_str = event.get("firstEventDate", "")
+    event_date_str = event.get("firstEventDate", event.get("actionDate", ""))
     event_date = format_event_date(event_date_str)
-    venue = event.get("venueName", event.get("cityName", "TBD"))
+    ae_list = event.get("actionEventList", [])
+    first_session = ae_list[0] if ae_list else {}
+    venue_map = event.get("venueMap", {})
+    venue_from_map = next(iter(venue_map.values()), None) if isinstance(venue_map, dict) else None
+    venue = (
+        event.get("venueName")
+        or first_session.get("venueName")
+        or venue_from_map
+        or event.get("cityName")
+        or first_session.get("cityName")
+        or "TBD"
+    )
     min_price = event.get("minPrice", 0)
     max_price = event.get("maxPrice", min_price)
     age_restriction = event.get("age", event.get("ageRestriction", 0))
 
     # Get currency from actionEventList
-    ae_list = event.get("actionEventList", [])
     currency = ae_list[0].get("currency", "") if ae_list else ""
 
     age_text = get_age_restriction_text(age_restriction, lang)

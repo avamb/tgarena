@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     # Application
-    PORT: int = 3000
+    PORT: int = 3001
     ENV: str = "development"
     DEBUG: bool = False
 

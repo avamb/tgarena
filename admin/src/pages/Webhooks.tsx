@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import { Save, TestTube, History, CheckCircle, XCircle, RefreshCw, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../store/auth'
+import { apiUrl } from '../api'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+const API_BASE = apiUrl('/api/admin')
 
 interface WebhookConfig {
   url: string

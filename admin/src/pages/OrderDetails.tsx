@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Ticket, User, Building, Calendar, MapPin, DollarSign, Loader2, AlertCircle, CheckCircle, XCircle, Clock, Trash2, Ban } from 'lucide-react'
 import { useAuthStore } from '../store/auth'
 import toast from 'react-hot-toast'
+import { apiUrl } from '../api'
 
 interface TicketData {
   id: number
@@ -59,7 +60,7 @@ export default function OrderDetails() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`http://localhost:8000/api/admin/orders/${id}`, {
+      const response = await fetch(apiUrl(`/api/admin/orders/${id}`), {
         headers: {
           'Authorization': `Bearer ${authToken}`,
         },
@@ -155,7 +156,7 @@ export default function OrderDetails() {
 
     setActionLoading(true)
     try {
-      const response = await fetch(`http://localhost:8000/api/admin/orders/${order.id}/cancel`, {
+      const response = await fetch(apiUrl(`/api/admin/orders/${order.id}/cancel`), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${authToken}`,
@@ -189,7 +190,7 @@ export default function OrderDetails() {
 
     setActionLoading(true)
     try {
-      const response = await fetch(`http://localhost:8000/api/admin/orders/${order.id}`, {
+      const response = await fetch(apiUrl(`/api/admin/orders/${order.id}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${authToken}`,

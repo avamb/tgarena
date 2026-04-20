@@ -7,7 +7,7 @@
   },
   "services": {
     "app": {
-      "internal_port": 3000,
+      "internal_port": 3001,
       "port_env_var": "PORT",
       "healthcheck_path": "/api/health",
       "healthcheck_interval": 30,

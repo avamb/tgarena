@@ -3,6 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, Users, Ticket, ShoppingCart, Webhook, Settings, ScrollText, LogOut, Menu, X, ChevronRight, Home } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '../store/auth'
+import { apiUrl } from '../api'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -49,7 +50,7 @@ function Breadcrumbs() {
         // Check if ID is numeric
         if (!isNaN(Number(entityId))) {
           try {
-            const response = await fetch(`http://localhost:8000/api/admin/${entityType}/${entityId}`, {
+            const response = await fetch(apiUrl(`/api/admin/${entityType}/${entityId}`), {
               headers: {
                 'Authorization': `Bearer ${authToken}`,
               },

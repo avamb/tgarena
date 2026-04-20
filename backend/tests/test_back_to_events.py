@@ -89,6 +89,26 @@ class TestEventDetailsMessage:
         assert "English Event" in message
         assert "Date:" in message  # English text
 
+    def test_build_event_details_message_uses_action_event_venue(self):
+        """Test venue fallback from actionEventList when root venue is absent."""
+        event = {
+            "fullActionName": "Session Venue Event",
+            "firstEventDate": "20.08.2025",
+            "actionEventList": [
+                {
+                    "venueName": "Session Arena",
+                    "cityName": "Paris",
+                    "currency": "EUR",
+                }
+            ],
+            "minPrice": 100,
+            "maxPrice": 200,
+        }
+
+        message = build_event_details_message(event, "en")
+
+        assert "Session Arena" in message
+
 
 class TestEventDetailsKeyboard:
     """Test event details keyboard building."""

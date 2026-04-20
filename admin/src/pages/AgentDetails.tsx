@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Copy, Edit, Users, ShoppingCart, DollarSign, Loader2, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../store/auth'
+import { apiUrl } from '../api'
 
 interface Agent {
   id: number
@@ -39,7 +40,7 @@ export default function AgentDetails() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`http://localhost:8000/api/admin/agents/${id}`, {
+      const response = await fetch(apiUrl(`/api/admin/agents/${id}`), {
         headers: {
           'Authorization': `Bearer ${authToken}`,
         },
@@ -64,7 +65,7 @@ export default function AgentDetails() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch(`http://localhost:8000/api/admin/agents/${id}/stats`, {
+      const response = await fetch(apiUrl(`/api/admin/agents/${id}/stats`), {
         headers: {
           'Authorization': `Bearer ${authToken}`,
         },

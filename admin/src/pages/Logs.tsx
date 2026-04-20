@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { RefreshCw, Search, Filter, Download, Pause, Play } from 'lucide-react'
 import { useAuthStore } from '../store/auth'
+import { apiUrl } from '../api'
 
 interface LogEntry {
   timestamp: string
@@ -14,8 +15,6 @@ interface LogEntry {
   component?: string
   exception?: string
 }
-
-const API_URL = 'http://localhost:8000'
 
 const LEVEL_COLORS: Record<string, string> = {
   DEBUG: 'text-gray-500 bg-gray-100',
@@ -54,7 +53,7 @@ export default function Logs() {
       if (componentFilter) params.set('component', componentFilter)
       if (searchQuery) params.set('search', searchQuery)
 
-      const response = await fetch(`${API_URL}/api/admin/logs?${params}`, {
+      const response = await fetch(apiUrl(`/api/admin/logs?${params}`), {
         headers: { Authorization: `Bearer ${token}` },
       })
 
