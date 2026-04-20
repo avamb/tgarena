@@ -18,6 +18,7 @@ from app.bot.handlers import (
     callback_event_details,
     callback_back_to_events,
     extract_event_venue,
+    resolve_event_venue,
 )
 from app.bot.localization import get_text
 
@@ -132,6 +133,37 @@ class TestEventDetailsMessage:
         }
 
         assert extract_event_venue(event) == "Club Hall"
+
+    @pytest.mark.asyncio
+    async def test_resolve_event_venue_via_get_venues(self):
+        """Test missing venue is resolved through GET_VENUES by cityId/venueId."""
+        agent = MagicMock()
+        agent.fid = 1311
+        agent.token = "test_token"
+        agent.zone = "test"
+
+        event = {
+            "actionId": 1397,
+            "actionEventList": [
+                {
+                    "cityId": 2,
+                    "venueId": 77,
+                }
+            ],
+        }
+
+        mock_client = AsyncMock()
+        mock_client.get_venues.return_value = [
+            {"venueId": 77, "venueName": "Ashdod Wine Hall"},
+        ]
+
+        with patch("app.bot.handlers.Bill24Client", return_value=mock_client):
+            venue = await resolve_event_venue(agent, event)
+
+        assert venue == "Ashdod Wine Hall"
+        assert event["venueName"] == "Ashdod Wine Hall"
+        mock_client.get_venues.assert_awaited_once_with(city_id=2)
+        mock_client.close.assert_awaited_once()
 
 
 class TestEventDetailsKeyboard:

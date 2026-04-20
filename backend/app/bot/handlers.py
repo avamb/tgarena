@@ -345,6 +345,67 @@ def extract_event_venue(event: Dict[str, Any]) -> str:
     return "TBD"
 
 
+async def resolve_event_venue(agent: Agent, event: Dict[str, Any]) -> str:
+    """Resolve missing venue names via GET_VENUES using cityId + venueId."""
+    venue = extract_event_venue(event)
+    if venue != "TBD":
+        return venue
+
+    ae_list = event.get("actionEventList", [])
+    first_session = ae_list[0] if ae_list and isinstance(ae_list[0], dict) else {}
+    city_id = event.get("cityId") or first_session.get("cityId")
+    venue_id = event.get("venueId") or first_session.get("venueId")
+
+    if not city_id or not venue_id:
+        return venue
+
+    client = Bill24Client(
+        fid=agent.fid,
+        token=agent.token,
+        zone=agent.zone or "test",
+    )
+
+    try:
+        venue_list = await client.get_venues(city_id=city_id)
+        matching_venue = next(
+            (item for item in venue_list if str(item.get("venueId")) == str(venue_id)),
+            None,
+        )
+        resolved_venue = _first_non_empty([
+            matching_venue.get("venueName") if matching_venue else None,
+            matching_venue.get("name") if matching_venue else None,
+            matching_venue.get("address") if matching_venue else None,
+        ])
+        if resolved_venue:
+            event["venueName"] = resolved_venue
+            logger.info(
+                "Resolved venue via GET_VENUES for actionId=%s cityId=%s venueId=%s -> %s",
+                event.get("actionId"),
+                city_id,
+                venue_id,
+                resolved_venue,
+            )
+            return resolved_venue
+        logger.warning(
+            "GET_VENUES did not contain venueId=%s for actionId=%s cityId=%s",
+            venue_id,
+            event.get("actionId"),
+            city_id,
+        )
+    except Bill24Error as e:
+        logger.warning(
+            "Failed to resolve venue via GET_VENUES for actionId=%s cityId=%s venueId=%s: %s",
+            event.get("actionId"),
+            city_id,
+            venue_id,
+            e,
+        )
+    finally:
+        await client.close()
+
+    return venue
+
+
 def calculate_countdown(event_date_str: str, lang: str = "ru") -> str:
     """
     Calculate countdown to event start.
@@ -1134,6 +1195,8 @@ async def callback_event_details(callback: CallbackQuery):
             if not event:
                 await callback.message.edit_text(get_text("error_event_not_found", lang))
                 return
+
+            await resolve_event_venue(agent, event)
 
             # Build message and keyboard
             message_text = build_event_details_message(event, lang)
