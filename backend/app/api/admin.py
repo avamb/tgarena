@@ -165,12 +165,18 @@ class DashboardStats(BaseModel):
 # =============================================================================
 
 
+def get_public_bot_username() -> str:
+    """Return Telegram bot username without a leading @ for public deep links."""
+    bot_username = (settings.TELEGRAM_BOT_USERNAME or "ArenaAppTestZone_bot").strip()
+    return bot_username.lstrip("@") or "ArenaAppTestZone_bot"
+
+
 def agent_to_response(agent: AgentModel) -> AgentResponse:
     """Convert Agent model to AgentResponse schema.
 
     Note: Deep link uses agent.id (NOT fid or token) for identification.
     """
-    bot_username = settings.TELEGRAM_BOT_USERNAME or "YourBotUsername"
+    bot_username = get_public_bot_username()
     return AgentResponse(
         id=agent.id,
         name=agent.name,

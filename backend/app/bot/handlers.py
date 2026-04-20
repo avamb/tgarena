@@ -267,6 +267,84 @@ def format_event_date(date_str: str) -> str:
         return date_str
 
 
+def _first_non_empty(values: List[Any]) -> Optional[str]:
+    """Return the first non-empty string-like value."""
+    for value in values:
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped:
+                return stripped
+        elif value is not None:
+            text = str(value).strip()
+            if text:
+                return text
+    return None
+
+
+def _extract_venue_from_map(venue_map: Any) -> Optional[str]:
+    """Extract a venue name from GET_ALL_ACTIONS venueMap shapes."""
+    if isinstance(venue_map, dict):
+        return _first_non_empty(list(venue_map.values()))
+
+    if isinstance(venue_map, list):
+        candidates: List[Any] = []
+        for item in venue_map:
+            if isinstance(item, dict):
+                candidates.extend([
+                    item.get("venueName"),
+                    item.get("name"),
+                    item.get("title"),
+                    item.get("value"),
+                ])
+            else:
+                candidates.append(item)
+        return _first_non_empty(candidates)
+
+    return _first_non_empty([venue_map])
+
+
+def extract_event_venue(event: Dict[str, Any]) -> str:
+    """Best-effort venue extraction across Bill24 event payload variants."""
+    ae_list = event.get("actionEventList", [])
+    first_session = ae_list[0] if ae_list and isinstance(ae_list[0], dict) else {}
+
+    venue = _first_non_empty([
+        event.get("venueName"),
+        event.get("venue"),
+        event.get("venueTitle"),
+        event.get("placeName"),
+        event.get("hallName"),
+        event.get("locationName"),
+        event.get("location"),
+        first_session.get("venueName"),
+        first_session.get("venue"),
+        first_session.get("venueTitle"),
+        first_session.get("placeName"),
+        first_session.get("hallName"),
+        first_session.get("locationName"),
+        first_session.get("location"),
+        _extract_venue_from_map(event.get("venueMap")),
+        event.get("cityName"),
+        first_session.get("cityName"),
+        event.get("venueAddress"),
+        first_session.get("venueAddress"),
+        event.get("address"),
+        first_session.get("address"),
+    ])
+
+    if venue:
+        return venue
+
+    logger.warning(
+        "Unable to resolve venue for actionId=%s available_keys=%s first_session_keys=%s venueMap=%r",
+        event.get("actionId"),
+        sorted(event.keys()),
+        sorted(first_session.keys()) if isinstance(first_session, dict) else [],
+        event.get("venueMap"),
+    )
+    return "TBD"
+
+
 def calculate_countdown(event_date_str: str, lang: str = "ru") -> str:
     """
     Calculate countdown to event start.
@@ -945,17 +1023,7 @@ def build_event_details_message(event: Dict[str, Any], lang: str) -> str:
     event_date_str = event.get("firstEventDate", event.get("actionDate", ""))
     event_date = format_event_date(event_date_str)
     ae_list = event.get("actionEventList", [])
-    first_session = ae_list[0] if ae_list else {}
-    venue_map = event.get("venueMap", {})
-    venue_from_map = next(iter(venue_map.values()), None) if isinstance(venue_map, dict) else None
-    venue = (
-        event.get("venueName")
-        or first_session.get("venueName")
-        or venue_from_map
-        or event.get("cityName")
-        or first_session.get("cityName")
-        or "TBD"
-    )
+    venue = extract_event_venue(event)
     min_price = event.get("minPrice", 0)
     max_price = event.get("maxPrice", min_price)
     age_restriction = event.get("age", event.get("ageRestriction", 0))

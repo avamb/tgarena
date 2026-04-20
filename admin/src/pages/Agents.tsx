@@ -168,7 +168,11 @@ export default function Agents() {
   // Agent identification uses internal agent.id (NOT fid or token)
   // Deep link format: ?start=agent_{agent_id}
   const copyDeepLink = (agent: Agent) => {
-    const link = agent.deep_link || `https://t.me/YourBotUsername?start=agent_${agent.id}`
+    const link = agent.deep_link
+    if (!link) {
+      toast.error('Deep link is not available for this agent yet')
+      return
+    }
     navigator.clipboard.writeText(link)
     toast.success('Deep link copied!')
   }

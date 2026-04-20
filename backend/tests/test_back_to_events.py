@@ -17,6 +17,7 @@ from app.bot.handlers import (
     build_event_details_keyboard,
     callback_event_details,
     callback_back_to_events,
+    extract_event_venue,
 )
 from app.bot.localization import get_text
 
@@ -108,6 +109,29 @@ class TestEventDetailsMessage:
         message = build_event_details_message(event, "en")
 
         assert "Session Arena" in message
+
+    def test_extract_event_venue_from_venue_map(self):
+        """Test venue fallback from GET_ALL_ACTIONS venueMap."""
+        event = {
+            "fullActionName": "Mapped Venue Event",
+            "venueMap": {"15": "Winter Theater"},
+            "cityName": "Sochi",
+        }
+
+        assert extract_event_venue(event) == "Winter Theater"
+
+    def test_extract_event_venue_from_alternate_session_field(self):
+        """Test venue fallback from alternate nested session keys."""
+        event = {
+            "actionEventList": [
+                {
+                    "placeName": "Club Hall",
+                    "cityName": "Paris",
+                }
+            ]
+        }
+
+        assert extract_event_venue(event) == "Club Hall"
 
 
 class TestEventDetailsKeyboard:
