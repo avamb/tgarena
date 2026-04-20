@@ -17,9 +17,16 @@ interface DashboardStats {
   total_users: number
   total_orders: number
   total_revenue: number
+  revenue_by_currency: CurrencyBreakdown[]
   active_agents: number
   orders_today: number
   revenue_today: number
+  revenue_today_by_currency: CurrencyBreakdown[]
+}
+
+interface CurrencyBreakdown {
+  currency: string
+  amount: number
 }
 
 interface ChartDataPoint {
@@ -35,6 +42,7 @@ interface RecentOrder {
   agent_name: string
   status: string
   total_sum: number
+  currency: string
   ticket_count: number
   created_at: string
 }
@@ -52,7 +60,26 @@ export default function Dashboard() {
   const [ordersLoading, setOrdersLoading] = useState(true)
   const authToken = useAuthStore((state) => state.token)
 
-  // Fetch dashboard stats
+  const formatCurrency = (amount: number, currency: string) => {
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency,
+      }).format(amount)
+    } catch {
+      return `${currency} ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    }
+  }
+
+  const formatRevenueSummary = (breakdown: CurrencyBreakdown[]) => {
+    if (!breakdown.length) return ['0']
+    if (breakdown.length === 1) {
+      const item = breakdown[0]
+      return [formatCurrency(item.amount, item.currency)]
+    }
+    return breakdown.map((item) => formatCurrency(item.amount, item.currency))
+  }
+
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -60,7 +87,7 @@ export default function Dashboard() {
         setError(null)
         const response = await fetch(apiUrl('/api/admin/dashboard/stats'), {
           headers: {
-            'Authorization': `Bearer ${authToken}`,
+            Authorization: `Bearer ${authToken}`,
           },
         })
 
@@ -73,14 +100,15 @@ export default function Dashboard() {
       } catch (err) {
         console.error('Error fetching stats:', err)
         setError('Failed to load dashboard statistics')
-        // Set default values on error
         setStats({
           total_users: 0,
           total_orders: 0,
           total_revenue: 0,
+          revenue_by_currency: [],
           active_agents: 0,
           orders_today: 0,
           revenue_today: 0,
+          revenue_today_by_currency: [],
         })
       } finally {
         setLoading(false)
@@ -92,14 +120,13 @@ export default function Dashboard() {
     }
   }, [authToken])
 
-  // Fetch recent orders
   useEffect(() => {
     const fetchRecentOrders = async () => {
       try {
         setOrdersLoading(true)
         const response = await fetch(apiUrl('/api/admin/dashboard/recent-orders?limit=5'), {
           headers: {
-            'Authorization': `Bearer ${authToken}`,
+            Authorization: `Bearer ${authToken}`,
           },
         })
 
@@ -119,20 +146,18 @@ export default function Dashboard() {
     }
   }, [authToken])
 
-  // Fetch chart data
   useEffect(() => {
     const fetchChartData = async () => {
       try {
         setChartLoading(true)
         const response = await fetch(apiUrl(`/api/admin/dashboard/sales-chart?period=${chartPeriod}`), {
           headers: {
-            'Authorization': `Bearer ${authToken}`,
+            Authorization: `Bearer ${authToken}`,
           },
         })
 
         if (response.ok) {
           const data = await response.json()
-          // Transform API data to chart format
           if (data.labels && data.data) {
             const chartPoints = data.labels.map((label: string, index: number) => ({
               date: label,
@@ -141,16 +166,13 @@ export default function Dashboard() {
             }))
             setChartData(chartPoints)
           } else {
-            // Generate sample data if API returns empty
             setChartData(generateSampleData(chartPeriod))
           }
         } else {
-          // Use sample data on API error
           setChartData(generateSampleData(chartPeriod))
         }
       } catch (err) {
         console.error('Error fetching chart data:', err)
-        // Use sample data on network error
         setChartData(generateSampleData(chartPeriod))
       } finally {
         setChartLoading(false)
@@ -162,7 +184,6 @@ export default function Dashboard() {
     }
   }, [authToken, chartPeriod])
 
-  // Generate sample data for the chart when no real data is available
   const generateSampleData = (period: ChartPeriod): ChartDataPoint[] => {
     const now = new Date()
     const data: ChartDataPoint[] = []
@@ -195,7 +216,7 @@ export default function Dashboard() {
   const statsConfig = [
     { name: 'Total Users', value: stats?.total_users ?? 0, icon: Users, color: 'bg-blue-500' },
     { name: 'Total Orders', value: stats?.total_orders ?? 0, icon: ShoppingCart, color: 'bg-green-500' },
-    { name: 'Revenue', value: `₽${stats?.total_revenue ?? 0}`, icon: DollarSign, color: 'bg-yellow-500' },
+    { name: 'Revenue', value: formatRevenueSummary(stats?.revenue_by_currency ?? []), icon: DollarSign, color: 'bg-yellow-500' },
     { name: 'Active Agents', value: stats?.active_agents ?? 0, icon: Activity, color: 'bg-purple-500' },
   ]
 
@@ -203,18 +224,25 @@ export default function Dashboard() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         {statsConfig.map((stat) => (
           <div key={stat.name} className="card">
             <div className="flex items-center">
-              <div className={`${stat.color} p-3 rounded-lg`}>
+              <div className={`${stat.color} rounded-lg p-3`}>
                 <stat.icon className="h-6 w-6 text-white" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500">{stat.name}</p>
                 {loading ? (
-                  <Loader2 className="h-6 w-6 text-gray-400 animate-spin mt-1" />
+                  <Loader2 className="mt-1 h-6 w-6 animate-spin text-gray-400" />
+                ) : Array.isArray(stat.value) ? (
+                  <div className="space-y-1">
+                    {stat.value.map((value) => (
+                      <p key={value} className="text-lg font-semibold text-gray-900">
+                        {value}
+                      </p>
+                    ))}
+                  </div>
                 ) : (
                   <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
                 )}
@@ -225,50 +253,60 @@ export default function Dashboard() {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">
           {error}
         </div>
       )}
 
-      {/* Recent Orders */}
       <div className="card">
-        <h2 className="text-lg font-semibold mb-4">Recent Orders</h2>
+        <h2 className="mb-4 text-lg font-semibold">Recent Orders</h2>
         {ordersLoading ? (
           <div className="flex justify-center py-4">
-            <Loader2 className="h-6 w-6 text-gray-400 animate-spin" />
+            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
           </div>
         ) : recentOrders.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Order ID</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Customer</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Agent</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Total</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Date</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 bg-white">
                 {recentOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">#{order.id}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{order.user_name}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{order.agent_name}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        order.status === 'PAID' ? 'bg-green-100 text-green-800' :
-                        order.status === 'CANCELLED' ? 'bg-red-100 text-red-800' :
-                        order.status === 'PROCESSING' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">#{order.id}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{order.user_name}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{order.agent_name}</td>
+                    <td className="whitespace-nowrap px-4 py-3">
+                      <span
+                        className={`rounded-full px-2 py-1 text-xs font-medium ${
+                          order.status === 'PAID'
+                            ? 'bg-green-100 text-green-800'
+                            : order.status === 'CANCELLED'
+                              ? 'bg-red-100 text-red-800'
+                              : order.status === 'PROCESSING'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-gray-100 text-gray-800'
+                        }`}
+                      >
                         {order.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">₽{order.total_sum.toLocaleString()}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                      {formatCurrency(order.total_sum, order.currency)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                      {new Date(order.created_at).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
                     </td>
                   </tr>
                 ))}
@@ -280,37 +318,30 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Sales Chart */}
       <div className="card">
-        <div className="flex justify-between items-center mb-4">
+        <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Sales Overview</h2>
           <div className="flex space-x-2">
             <button
               onClick={() => setChartPeriod('week')}
-              className={`px-3 py-1 text-sm rounded ${
-                chartPeriod === 'week'
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              className={`rounded px-3 py-1 text-sm ${
+                chartPeriod === 'week' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
               Week
             </button>
             <button
               onClick={() => setChartPeriod('month')}
-              className={`px-3 py-1 text-sm rounded ${
-                chartPeriod === 'month'
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              className={`rounded px-3 py-1 text-sm ${
+                chartPeriod === 'month' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
               Month
             </button>
             <button
               onClick={() => setChartPeriod('year')}
-              className={`px-3 py-1 text-sm rounded ${
-                chartPeriod === 'year'
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              className={`rounded px-3 py-1 text-sm ${
+                chartPeriod === 'year' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
               Year
@@ -319,8 +350,8 @@ export default function Dashboard() {
         </div>
         <div className="h-64">
           {chartLoading ? (
-            <div className="flex items-center justify-center h-full">
-              <Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
+            <div className="flex h-full items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
             </div>
           ) : chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
@@ -345,7 +376,7 @@ export default function Dashboard() {
                   tick={{ fontSize: 12 }}
                   tickLine={false}
                   axisLine={{ stroke: '#e5e7eb' }}
-                  label={{ value: 'Revenue (₽)', angle: 90, position: 'insideRight', fontSize: 12 }}
+                  label={{ value: 'Revenue', angle: 90, position: 'insideRight', fontSize: 12 }}
                 />
                 <Tooltip
                   contentStyle={{
@@ -354,8 +385,8 @@ export default function Dashboard() {
                     borderRadius: '8px',
                   }}
                   formatter={(value: number, name: string) => [
-                    name === 'revenue' ? `₽${value.toLocaleString()}` : value,
-                    name === 'revenue' ? 'Revenue' : 'Orders'
+                    name === 'revenue' ? value.toLocaleString() : value,
+                    name === 'revenue' ? 'Revenue' : 'Orders',
                   ]}
                 />
                 <Legend />
@@ -382,7 +413,7 @@ export default function Dashboard() {
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex items-center justify-center h-full text-gray-500">
+            <div className="flex h-full items-center justify-center text-gray-500">
               No sales data available
             </div>
           )}

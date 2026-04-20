@@ -20,6 +20,12 @@ interface AgentStats {
   users: number
   orders: number
   revenue: number
+  revenue_by_currency: CurrencyBreakdown[]
+}
+
+interface CurrencyBreakdown {
+  currency: string
+  amount: number
 }
 
 interface AgentFormData {
@@ -57,7 +63,6 @@ export default function Agents() {
   const logout = useAuthStore((state) => state.logout)
   const navigate = useNavigate()
 
-  // Pagination state
   const [search, setSearch] = useState(searchParams.get('search') || '')
   const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get('page') || '1', 10))
   const [totalPages, setTotalPages] = useState(1)
@@ -66,14 +71,23 @@ export default function Agents() {
   const isInitialMount = useRef(true)
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Handle 401 unauthorized - session expired
+  const formatCurrency = (amount: number, currency: string) => {
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency,
+      }).format(amount)
+    } catch {
+      return `${currency} ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    }
+  }
+
   const handleUnauthorized = useCallback(() => {
     toast.error('Session expired. Please login again.')
     logout()
     navigate('/login')
   }, [logout, navigate])
 
-  // Check if form has unsaved changes
   const hasUnsavedChanges = useCallback(() => {
     if (!showModal) return false
     return (
@@ -85,13 +99,11 @@ export default function Agents() {
     )
   }, [showModal, formData, originalFormData])
 
-  // Block navigation when there are unsaved changes
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
       hasUnsavedChanges() && currentLocation.pathname !== nextLocation.pathname
   )
 
-  // Reset page to 1 when search changes (but not on initial mount)
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false
@@ -100,7 +112,6 @@ export default function Agents() {
     setCurrentPage(1)
   }, [search])
 
-  // Update URL when filters or page change
   useEffect(() => {
     const params = new URLSearchParams()
     if (search) params.set('search', search)
@@ -108,7 +119,6 @@ export default function Agents() {
     setSearchParams(params, { replace: true })
   }, [search, currentPage, setSearchParams])
 
-  // Fetch agents when page or search changes
   useEffect(() => {
     fetchAgents()
   }, [currentPage, search])
@@ -124,7 +134,7 @@ export default function Agents() {
 
       const response = await fetch(apiUrl(`/api/admin/agents?${params.toString()}`), {
         headers: {
-          'Authorization': `Bearer ${authToken}`,
+          Authorization: `Bearer ${authToken}`,
         },
       })
       if (response.ok) {
@@ -146,27 +156,21 @@ export default function Agents() {
     }
   }
 
-  // Debounced search handler
   const handleSearchChange = (value: string) => {
-    // Clear any pending timeout
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current)
     }
-    // Set a new timeout for debounced search
     searchTimeoutRef.current = setTimeout(() => {
       setSearch(value)
     }, 300)
   }
 
-  // Pagination handlers
   const goToPage = (page: number) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page)
     }
   }
 
-  // Agent identification uses internal agent.id (NOT fid or token)
-  // Deep link format: ?start=agent_{agent_id}
   const copyDeepLink = (agent: Agent) => {
     const link = agent.deep_link
     if (!link) {
@@ -186,7 +190,7 @@ export default function Agents() {
     try {
       const response = await fetch(apiUrl(`/api/admin/agents/${agent.id}/stats`), {
         headers: {
-          'Authorization': `Bearer ${authToken}`,
+          Authorization: `Bearer ${authToken}`,
         },
       })
       if (response.ok) {
@@ -214,16 +218,15 @@ export default function Agents() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
     }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validate form
     if (!formData.name.trim()) {
       toast.error('Agent name is required')
       return
@@ -251,7 +254,7 @@ export default function Agents() {
         method: editingAgent ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
+          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
           name: formData.name.trim(),
@@ -265,10 +268,10 @@ export default function Agents() {
       if (response.ok) {
         const savedAgent = await response.json()
         if (editingAgent) {
-          setAgents(prev => prev.map(a => a.id === savedAgent.id ? savedAgent : a))
+          setAgents((prev) => prev.map((agent) => (agent.id === savedAgent.id ? savedAgent : agent)))
           toast.success('Agent updated successfully!')
         } else {
-          setAgents(prev => [...prev, savedAgent])
+          setAgents((prev) => [...prev, savedAgent])
           toast.success('Agent created successfully!')
         }
         closeModal()
@@ -310,12 +313,12 @@ export default function Agents() {
       const response = await fetch(apiUrl(`/api/admin/agents/${agent.id}`), {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${authToken}`,
+          Authorization: `Bearer ${authToken}`,
         },
       })
 
       if (response.ok) {
-        setAgents(prev => prev.filter(a => a.id !== agent.id))
+        setAgents((prev) => prev.filter((item) => item.id !== agent.id))
         toast.success('Agent deleted successfully!')
       } else if (response.status === 401) {
         handleUnauthorized()
@@ -355,28 +358,24 @@ export default function Agents() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Agents</h1>
-        <button
-          onClick={openAddModal}
-          className="btn btn-primary"
-        >
-          <Plus className="h-5 w-5 mr-2" />
+        <button onClick={openAddModal} className="btn btn-primary">
+          <Plus className="mr-2 h-5 w-5" />
           Add Agent
         </button>
       </div>
 
-      {/* Search Filter */}
       <div className="card">
         <div className="flex items-center gap-4">
-          <div className="flex-1 max-w-md relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <div className="relative max-w-md flex-1">
+            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
             <input
               type="text"
               placeholder="Search agents by name or FID..."
               defaultValue={search}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="pl-10 w-full"
+              className="w-full pl-10"
             />
           </div>
           {search && (
@@ -388,7 +387,7 @@ export default function Agents() {
               }}
               className="btn btn-secondary text-sm"
             >
-              <X className="h-4 w-4 mr-1" />
+              <X className="mr-1 h-4 w-4" />
               Clear
             </button>
           )}
@@ -400,30 +399,24 @@ export default function Agents() {
 
       <div className="card overflow-x-auto">
         {loadingAgents ? (
-          <div className="text-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary-600" />
-            <p className="text-gray-500 mt-2">Loading agents...</p>
+          <div className="py-12 text-center">
+            <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary-600" />
+            <p className="mt-2 text-gray-500">Loading agents...</p>
           </div>
         ) : fetchError ? (
-          <div className="text-center py-12">
-            <AlertTriangle className="h-12 w-12 mx-auto text-red-500 mb-4" />
-            <p className="text-red-600 font-medium mb-2">Error Loading Agents</p>
-            <p className="text-gray-500 mb-4">{fetchError}</p>
-            <button
-              onClick={fetchAgents}
-              className="btn btn-primary"
-            >
+          <div className="py-12 text-center">
+            <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-red-500" />
+            <p className="mb-2 font-medium text-red-600">Error Loading Agents</p>
+            <p className="mb-4 text-gray-500">{fetchError}</p>
+            <button onClick={fetchAgents} className="btn btn-primary">
               Try Again
             </button>
           </div>
         ) : agents.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500 mb-4">No agents yet</p>
-            <button
-              onClick={openAddModal}
-              className="btn btn-primary"
-            >
-              <Plus className="h-5 w-5 mr-2" />
+          <div className="py-12 text-center">
+            <p className="mb-4 text-gray-500">No agents yet</p>
+            <button onClick={openAddModal} className="btn btn-primary">
+              <Plus className="mr-2 h-5 w-5" />
               Add Your First Agent
             </button>
           </div>
@@ -444,7 +437,7 @@ export default function Agents() {
               {agents.map((agent) => (
                 <tr key={agent.id}>
                   <td className="font-mono text-sm text-gray-500">{agent.id}</td>
-                  <td className="font-medium max-w-[200px] truncate" title={agent.name}>
+                  <td className="max-w-[200px] truncate font-medium" title={agent.name}>
                     <Link
                       to={`/agents/${agent.id}`}
                       className="text-primary-600 hover:text-primary-800 hover:underline"
@@ -466,9 +459,9 @@ export default function Agents() {
                   <td>
                     <button
                       onClick={() => copyDeepLink(agent)}
-                      className="text-primary-600 hover:text-primary-800 inline-flex items-center"
+                      className="inline-flex items-center text-primary-600 hover:text-primary-800"
                     >
-                      <Copy className="h-4 w-4 mr-1" />
+                      <Copy className="mr-1 h-4 w-4" />
                       Copy
                     </button>
                   </td>
@@ -504,7 +497,6 @@ export default function Agents() {
         )}
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-500">
@@ -514,15 +506,13 @@ export default function Agents() {
             <button
               onClick={() => goToPage(currentPage - 1)}
               disabled={currentPage === 1}
-              className="btn btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn btn-secondary text-sm disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <ChevronLeft className="h-4 w-4 mr-1" />
+              <ChevronLeft className="mr-1 h-4 w-4" />
               Previous
             </button>
-            {/* Page numbers */}
             <div className="flex items-center space-x-1">
               {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                // Show pages around current page
                 let page: number
                 if (totalPages <= 5) {
                   page = i + 1
@@ -537,7 +527,7 @@ export default function Agents() {
                   <button
                     key={page}
                     onClick={() => goToPage(page)}
-                    className={`px-3 py-1 text-sm rounded ${
+                    className={`rounded px-3 py-1 text-sm ${
                       page === currentPage
                         ? 'bg-primary-600 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -551,34 +541,28 @@ export default function Agents() {
             <button
               onClick={() => goToPage(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className="btn btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn btn-secondary text-sm disabled:cursor-not-allowed disabled:opacity-50"
             >
               Next
-              <ChevronRight className="h-4 w-4 ml-1" />
+              <ChevronRight className="ml-1 h-4 w-4" />
             </button>
           </div>
         </div>
       )}
 
-      {/* Add/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">
-                {editingAgent ? 'Edit Agent' : 'Add New Agent'}
-              </h2>
-              <button
-                onClick={closeModal}
-                className="text-gray-500 hover:text-gray-700"
-              >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold">{editingAgent ? 'Edit Agent' : 'Add New Agent'}</h2>
+              <button onClick={closeModal} className="text-gray-500 hover:text-gray-700">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="name" className="mb-1 block text-sm font-medium text-gray-700">
                   Agent Name *
                 </label>
                 <input
@@ -594,7 +578,7 @@ export default function Agents() {
               </div>
 
               <div>
-                <label htmlFor="fid" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="fid" className="mb-1 block text-sm font-medium text-gray-700">
                   Bill24 FID *
                 </label>
                 <input
@@ -607,13 +591,11 @@ export default function Agents() {
                   className="w-full"
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Frontend ID from Bill24/TixGear platform
-                </p>
+                <p className="mt-1 text-xs text-gray-500">Frontend ID from Bill24/TixGear platform</p>
               </div>
 
               <div>
-                <label htmlFor="token" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="token" className="mb-1 block text-sm font-medium text-gray-700">
                   Bill24 Token *
                 </label>
                 <input
@@ -626,13 +608,11 @@ export default function Agents() {
                   className="w-full"
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  API token for Bill24 authentication
-                </p>
+                <p className="mt-1 text-xs text-gray-500">API token for Bill24 authentication</p>
               </div>
 
               <div>
-                <label htmlFor="zone" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="zone" className="mb-1 block text-sm font-medium text-gray-700">
                   Zone *
                 </label>
                 <select
@@ -645,9 +625,7 @@ export default function Agents() {
                   <option value="test">Test (Sandbox)</option>
                   <option value="real">Real (Production)</option>
                 </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  Use "Test" for development, "Real" for production
-                </p>
+                <p className="mt-1 text-xs text-gray-500">Use "Test" for development, "Real" for production</p>
               </div>
 
               <div className="flex items-center">
@@ -657,35 +635,26 @@ export default function Agents() {
                   type="checkbox"
                   checked={formData.is_active}
                   onChange={handleInputChange}
-                  className="h-4 w-4 text-primary-600 rounded border-gray-300"
+                  className="h-4 w-4 rounded border-gray-300 text-primary-600"
                 />
                 <label htmlFor="is_active" className="ml-2 text-sm text-gray-700">
                   Active (agent can receive orders)
                 </label>
               </div>
 
-              <div className="flex justify-end space-x-3 pt-4 border-t">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="btn btn-secondary"
-                  disabled={loading}
-                >
+              <div className="flex justify-end space-x-3 border-t pt-4">
+                <button type="button" onClick={closeModal} className="btn btn-secondary" disabled={loading}>
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={loading}
-                >
+                <button type="submit" className="btn btn-primary" disabled={loading}>
                   {loading ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Saving...
                     </>
                   ) : (
                     <>
-                      <Save className="h-4 w-4 mr-2" />
+                      <Save className="mr-2 h-4 w-4" />
                       {editingAgent ? 'Update' : 'Create'} Agent
                     </>
                   )}
@@ -696,18 +665,12 @@ export default function Agents() {
         </div>
       )}
 
-      {/* Agent Stats Modal */}
       {showStatsModal && selectedAgent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">
-                Agent Statistics
-              </h2>
-              <button
-                onClick={closeStatsModal}
-                className="text-gray-500 hover:text-gray-700"
-              >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold">Agent Statistics</h2>
+              <button onClick={closeStatsModal} className="text-gray-500 hover:text-gray-700">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -718,37 +681,42 @@ export default function Agents() {
             </div>
 
             {loadingStats ? (
-              <div className="text-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary-600" />
-                <p className="text-gray-500 mt-2">Loading stats...</p>
+              <div className="py-8 text-center">
+                <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary-600" />
+                <p className="mt-2 text-gray-500">Loading stats...</p>
               </div>
             ) : agentStats ? (
               <div className="grid grid-cols-3 gap-4">
-                <div className="bg-blue-50 rounded-lg p-4 text-center">
-                  <Users className="h-8 w-8 mx-auto text-blue-600 mb-2" />
+                <div className="rounded-lg bg-blue-50 p-4 text-center">
+                  <Users className="mx-auto mb-2 h-8 w-8 text-blue-600" />
                   <p className="text-2xl font-bold text-blue-900">{agentStats.users}</p>
                   <p className="text-sm text-blue-600">Users</p>
                 </div>
-                <div className="bg-green-50 rounded-lg p-4 text-center">
-                  <ShoppingCart className="h-8 w-8 mx-auto text-green-600 mb-2" />
+                <div className="rounded-lg bg-green-50 p-4 text-center">
+                  <ShoppingCart className="mx-auto mb-2 h-8 w-8 text-green-600" />
                   <p className="text-2xl font-bold text-green-900">{agentStats.orders}</p>
                   <p className="text-sm text-green-600">Orders</p>
                 </div>
-                <div className="bg-purple-50 rounded-lg p-4 text-center">
-                  <DollarSign className="h-8 w-8 mx-auto text-purple-600 mb-2" />
-                  <p className="text-2xl font-bold text-purple-900">₽{agentStats.revenue.toLocaleString()}</p>
+                <div className="rounded-lg bg-purple-50 p-4 text-center">
+                  <DollarSign className="mx-auto mb-2 h-8 w-8 text-purple-600" />
+                  <div className="space-y-1 text-2xl font-bold text-purple-900">
+                    {agentStats.revenue_by_currency?.length ? (
+                      agentStats.revenue_by_currency.map((item) => (
+                        <p key={item.currency}>{formatCurrency(item.amount, item.currency)}</p>
+                      ))
+                    ) : (
+                      <p>0</p>
+                    )}
+                  </div>
                   <p className="text-sm text-purple-600">Revenue</p>
                 </div>
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-4">Failed to load statistics</p>
+              <p className="py-4 text-center text-gray-500">Failed to load statistics</p>
             )}
 
             <div className="mt-6 flex justify-end">
-              <button
-                onClick={closeStatsModal}
-                className="btn btn-secondary"
-              >
+              <button onClick={closeStatsModal} className="btn btn-secondary">
                 Close
               </button>
             </div>
@@ -756,28 +724,21 @@ export default function Agents() {
         </div>
       )}
 
-      {/* Unsaved Changes Warning Dialog (for modal close) */}
       {showUnsavedWarning && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl">
-            <div className="flex items-center mb-4">
-              <AlertTriangle className="h-6 w-6 text-amber-500 mr-3" />
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50">
+          <div className="mx-4 w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center">
+              <AlertTriangle className="mr-3 h-6 w-6 text-amber-500" />
               <h2 className="text-lg font-bold text-gray-900">Unsaved Changes</h2>
             </div>
-            <p className="text-gray-600 mb-6">
+            <p className="mb-6 text-gray-600">
               You have unsaved changes. Are you sure you want to discard them?
             </p>
             <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setShowUnsavedWarning(false)}
-                className="btn btn-secondary"
-              >
+              <button onClick={() => setShowUnsavedWarning(false)} className="btn btn-secondary">
                 Stay
               </button>
-              <button
-                onClick={forceCloseModal}
-                className="btn btn-danger"
-              >
+              <button onClick={forceCloseModal} className="btn btn-danger">
                 Discard Changes
               </button>
             </div>
@@ -785,22 +746,18 @@ export default function Agents() {
         </div>
       )}
 
-      {/* Navigation Blocker Dialog (for route change) */}
       {blocker.state === 'blocked' && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl">
-            <div className="flex items-center mb-4">
-              <AlertTriangle className="h-6 w-6 text-amber-500 mr-3" />
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50">
+          <div className="mx-4 w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center">
+              <AlertTriangle className="mr-3 h-6 w-6 text-amber-500" />
               <h2 className="text-lg font-bold text-gray-900">Unsaved Changes</h2>
             </div>
-            <p className="text-gray-600 mb-6">
+            <p className="mb-6 text-gray-600">
               You have unsaved changes. Are you sure you want to leave this page?
             </p>
             <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => blocker.reset?.()}
-                className="btn btn-secondary"
-              >
+              <button onClick={() => blocker.reset?.()} className="btn btn-secondary">
                 Stay
               </button>
               <button
