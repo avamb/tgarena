@@ -23,7 +23,9 @@
         "BILL24_TEST_URL",
         "BILL24_REAL_URL",
         "BILL24_DEFAULT_ZONE",
-        "N8N_WEBHOOK_URL"
+        "N8N_WEBHOOK_URL",
+        "ADMIN_DEFAULT_USERNAME",
+        "ADMIN_DEFAULT_PASSWORD"
       ]
     },
     "postgres": {
