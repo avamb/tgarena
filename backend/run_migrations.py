@@ -66,11 +66,34 @@ def run_create_all():
 
             # Add columns that create_all won't add to existing tables
             alter_statements = [
-                "ALTER TABLE agents ADD COLUMN IF NOT EXISTS payment_type VARCHAR(20) DEFAULT 'bill24_acquiring'",
-                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_type VARCHAR(20) DEFAULT 'bill24_acquiring'",
+                "ALTER TABLE agents ADD COLUMN IF NOT EXISTS payment_type VARCHAR(30) DEFAULT 'bill24_acquiring'",
+                "ALTER TABLE agents ALTER COLUMN payment_type TYPE VARCHAR(30)",
+                "UPDATE agents SET payment_type = 'bill24_acquiring' WHERE payment_type IS NULL",
+                "ALTER TABLE agents ADD COLUMN IF NOT EXISTS stripe_account_id VARCHAR(255)",
+                "ALTER TABLE agents ADD COLUMN IF NOT EXISTS stripe_account_status VARCHAR(50)",
+                "ALTER TABLE agents ADD COLUMN IF NOT EXISTS stripe_charges_enabled BOOLEAN DEFAULT FALSE",
+                "ALTER TABLE agents ADD COLUMN IF NOT EXISTS stripe_payouts_enabled BOOLEAN DEFAULT FALSE",
+                "ALTER TABLE agents ADD COLUMN IF NOT EXISTS agent_operational_status VARCHAR(20) DEFAULT 'active'",
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_type VARCHAR(30) DEFAULT 'bill24_acquiring'",
+                "ALTER TABLE orders ALTER COLUMN payment_type TYPE VARCHAR(30)",
+                "UPDATE orders SET payment_type = 'bill24_acquiring' WHERE payment_type IS NULL",
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_provider VARCHAR(30)",
                 "ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_url TEXT",
                 "ALTER TABLE orders ADD COLUMN IF NOT EXISTS bil24_form_url TEXT",
                 "ALTER TABLE orders ADD COLUMN IF NOT EXISTS reservation_expires_at TIMESTAMP",
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS ticket_amount_minor BIGINT",
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS service_fee_amount_minor BIGINT",
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS gross_amount_minor BIGINT",
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS platform_fee_amount_minor BIGINT",
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS stripe_fee_estimated_minor BIGINT",
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS stripe_fee_actual_minor BIGINT",
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS stripe_session_id VARCHAR(255)",
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS stripe_payment_intent_id VARCHAR(255)",
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS stripe_charge_id VARCHAR(255)",
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS stripe_transfer_id VARCHAR(255)",
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS stripe_application_fee_amount_minor BIGINT",
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS refund_total_minor BIGINT DEFAULT 0",
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS risk_state VARCHAR(30)",
             ]
             for stmt in alter_statements:
                 try:

@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     STRIPE_SECRET_KEY: Optional[str] = None
     STRIPE_PUBLISHABLE_KEY: Optional[str] = None
     STRIPE_WEBHOOK_SECRET: Optional[str] = None
+    STRIPE_CONNECT_WEBHOOK_SECRET: Optional[str] = None
+    STRIPE_CONNECT_RETURN_URL: Optional[str] = None
+    STRIPE_CONNECT_REFRESH_URL: Optional[str] = None
+    STRIPE_CONNECT_PLATFORM_COUNTRY: Optional[str] = None
 
     # Webhooks
     N8N_WEBHOOK_URL: Optional[str] = None

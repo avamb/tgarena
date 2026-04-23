@@ -5,7 +5,7 @@ Handles authentication, agents, users, orders, dashboard, and webhooks managemen
 All protected routes require JWT authentication via Bearer token.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import Depends, HTTPException, Request, status
@@ -26,7 +26,36 @@ try:
         get_db,
     )
     from app.core.rate_limiter import login_rate_limiter
-    from app.models import Agent as AgentModel, User as UserModel, Order as OrderModel, Ticket as TicketModel
+    from app.models import (
+        Agent as AgentModel,
+        AgentOperationalStatus,
+        AgentLedgerEntry as AgentLedgerEntryModel,
+        AgentRiskPolicy as AgentRiskPolicyModel,
+        AgentWallet as AgentWalletModel,
+        Order as OrderModel,
+        RefundCase as RefundCaseModel,
+        Ticket as TicketModel,
+        User as UserModel,
+    )
+    from app.services import (
+        LedgerPosting,
+        calculate_refund,
+        calculate_remaining_risk_capacity,
+        calculate_top_up_required,
+        count_refund_events,
+        create_order_refund,
+        create_pending_refund_case,
+        create_onboarding_link,
+        create_connected_account,
+        ensure_order_charge_id,
+        ensure_risk_policy,
+        evaluate_agent_risk,
+        get_admin_risk_settings,
+        get_wallet_for_agent_currency,
+        post_entry,
+        refresh_account_status,
+        save_admin_risk_settings,
+    )
 except ModuleNotFoundError:
     from backend.app.core import (
         settings,
@@ -38,7 +67,36 @@ except ModuleNotFoundError:
         get_db,
     )
     from backend.app.core.rate_limiter import login_rate_limiter
-    from backend.app.models import Agent as AgentModel, User as UserModel, Order as OrderModel, Ticket as TicketModel
+    from backend.app.models import (
+        Agent as AgentModel,
+        AgentOperationalStatus,
+        AgentLedgerEntry as AgentLedgerEntryModel,
+        AgentRiskPolicy as AgentRiskPolicyModel,
+        AgentWallet as AgentWalletModel,
+        Order as OrderModel,
+        RefundCase as RefundCaseModel,
+        Ticket as TicketModel,
+        User as UserModel,
+    )
+    from backend.app.services import (
+        LedgerPosting,
+        calculate_refund,
+        calculate_remaining_risk_capacity,
+        calculate_top_up_required,
+        count_refund_events,
+        create_order_refund,
+        create_pending_refund_case,
+        create_onboarding_link,
+        create_connected_account,
+        ensure_order_charge_id,
+        ensure_risk_policy,
+        evaluate_agent_risk,
+        get_admin_risk_settings,
+        get_wallet_for_agent_currency,
+        post_entry,
+        refresh_account_status,
+        save_admin_risk_settings,
+    )
 
 
 # =============================================================================
@@ -76,6 +134,12 @@ class AgentResponse(BaseModel):
     fid: int  # Bill24 frontend ID (for API calls, NOT for deep links)
     zone: str
     is_active: bool
+    payment_type: str
+    agent_operational_status: str
+    stripe_account_id: Optional[str]
+    stripe_account_status: Optional[str]
+    stripe_charges_enabled: bool
+    stripe_payouts_enabled: bool
     created_at: datetime
     deep_link: str  # Generated using agent.id, NOT fid
 
@@ -172,6 +236,11 @@ class DashboardStats(BaseModel):
 # =============================================================================
 
 
+def _utcnow() -> datetime:
+    """Return a naive UTC datetime compatible with existing DB columns."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 def get_public_bot_username() -> str:
     """Return Telegram bot username without a leading @ for public deep links."""
     bot_username = (settings.TELEGRAM_BOT_USERNAME or "ArenaAppTestZone_bot").strip()
@@ -190,6 +259,12 @@ def agent_to_response(agent: AgentModel) -> AgentResponse:
         fid=agent.fid,
         zone=agent.zone,
         is_active=agent.is_active,
+        payment_type=agent.payment_type,
+        agent_operational_status=agent.agent_operational_status,
+        stripe_account_id=agent.stripe_account_id,
+        stripe_account_status=agent.stripe_account_status,
+        stripe_charges_enabled=bool(agent.stripe_charges_enabled),
+        stripe_payouts_enabled=bool(agent.stripe_payouts_enabled),
         created_at=agent.created_at,
         deep_link=f"https://t.me/{bot_username}?start=agent_{agent.id}",
     )
@@ -435,12 +510,220 @@ async def delete_agent(
     return {"message": f"Agent '{agent.name}' deleted successfully"}
 
 
+class StripeAccountResponse(BaseModel):
+    agent_id: int
+    payment_type: str
+    stripe_account_id: Optional[str]
+    stripe_account_status: Optional[str]
+    stripe_charges_enabled: bool
+    stripe_payouts_enabled: bool
+
+
+class StripeOnboardingLinkRequest(BaseModel):
+    refresh_url: Optional[str] = None
+    return_url: Optional[str] = None
+
+
+class StripeOnboardingLinkResponse(StripeAccountResponse):
+    onboarding_url: str
+
+
 class AgentStatsResponse(BaseModel):
     """Statistics for a specific agent."""
     users: int
     orders: int
     revenue: float
     revenue_by_currency: List[CurrencyBreakdownItem]
+
+
+class AgentWalletResponse(BaseModel):
+    id: int
+    agent_id: int
+    currency: str
+    reserve_balance_minor: int
+    credit_limit_minor: int
+    negative_exposure_minor: int
+    warning_threshold_minor: int
+    block_threshold_minor: int
+    status: str
+    remaining_risk_capacity_minor: int
+    top_up_required_minor: int
+    last_warning_at: Optional[datetime]
+    last_blocked_at: Optional[datetime]
+    created_at: datetime
+    updated_at: datetime
+
+
+class AgentWalletListResponse(BaseModel):
+    agent_id: int
+    agent_operational_status: str
+    wallets: List[AgentWalletResponse]
+
+
+class AgentRiskPolicyResponse(BaseModel):
+    agent_id: int
+    allow_negative_balance: bool
+    auto_block_enabled: bool
+    refund_window_days: int
+    refund_event_warning_count: int
+    refund_event_block_count: int
+    rolling_reserve_percent_bps: int
+    min_reserve_balance_minor: int
+    manual_override_status: Optional[str]
+    current_refund_event_count: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class AgentRiskPolicyUpdateRequest(BaseModel):
+    allow_negative_balance: Optional[bool] = None
+    auto_block_enabled: Optional[bool] = None
+    refund_window_days: Optional[int] = None
+    refund_event_warning_count: Optional[int] = None
+    refund_event_block_count: Optional[int] = None
+    rolling_reserve_percent_bps: Optional[int] = None
+    min_reserve_balance_minor: Optional[int] = None
+    manual_override_status: Optional[str] = None
+
+
+class AgentLedgerEntryResponse(BaseModel):
+    id: int
+    wallet_id: int
+    order_id: Optional[int]
+    refund_case_id: Optional[int]
+    currency: str
+    amount_minor: int
+    direction: str
+    entry_type: str
+    source: str
+    source_id: Optional[str]
+    description: Optional[str]
+    metadata_json: dict
+    created_at: datetime
+
+
+class AgentLedgerResponse(BaseModel):
+    agent_id: int
+    entries: List[AgentLedgerEntryResponse]
+
+
+class AgentRiskIncidentResponse(BaseModel):
+    id: int
+    incident_type: str
+    status: str
+    currency: str
+    amount_minor: int
+    order_id: Optional[int]
+    refund_case_id: Optional[int]
+    reason: Optional[str]
+    created_at: datetime
+
+
+class AgentRiskIncidentListResponse(BaseModel):
+    agent_id: int
+    refund_event_count: int
+    incidents: List[AgentRiskIncidentResponse]
+
+
+class AgentTopUpRequest(BaseModel):
+    currency: str
+    amount_minor: int
+    description: Optional[str] = None
+
+
+class AgentTopUpResponse(BaseModel):
+    agent_id: int
+    entry_id: int
+    wallet: AgentWalletResponse
+
+
+class AgentStatusOverrideResponse(BaseModel):
+    agent_id: int
+    agent_operational_status: str
+    manual_override_status: Optional[str]
+
+
+class RiskSettingsResponse(BaseModel):
+    allow_negative_balance: bool
+    auto_block_enabled: bool
+    refund_window_days: int
+    refund_event_warning_count: int
+    refund_event_block_count: int
+    rolling_reserve_percent_bps: int
+    min_reserve_balance_minor: int
+    default_credit_limit_minor: int
+    payment_success_url: str
+    stripe_connect_return_url: str
+    stripe_connect_refresh_url: str
+    telegram_bot_username: str
+    default_zone: str
+    event_cache_ttl: int
+    webhook_url: str
+
+
+class RiskSettingsUpdateRequest(BaseModel):
+    allow_negative_balance: Optional[bool] = None
+    auto_block_enabled: Optional[bool] = None
+    refund_window_days: Optional[int] = None
+    refund_event_warning_count: Optional[int] = None
+    refund_event_block_count: Optional[int] = None
+    rolling_reserve_percent_bps: Optional[int] = None
+    min_reserve_balance_minor: Optional[int] = None
+    default_credit_limit_minor: Optional[int] = None
+    payment_success_url: Optional[str] = None
+    stripe_connect_return_url: Optional[str] = None
+    stripe_connect_refresh_url: Optional[str] = None
+    telegram_bot_username: Optional[str] = None
+    default_zone: Optional[str] = None
+    event_cache_ttl: Optional[int] = None
+    webhook_url: Optional[str] = None
+
+
+class RefundCalculateRequest(BaseModel):
+    mode: str
+    reason: Optional[str] = None
+    amount_minor: Optional[int] = None
+
+
+class RefundCalculateResponse(BaseModel):
+    order_id: int
+    agent_id: int
+    currency: str
+    customer_refund_amount_minor: int
+    ticket_refund_amount_minor: int
+    service_fee_refund_amount_minor: int
+    platform_cost_amount_minor: int
+    agent_debit_amount_minor: int
+    post_refund_status: str
+    top_up_required_minor: int
+
+
+class RefundExecuteRequest(RefundCalculateRequest):
+    reverse_transfer: bool = True
+    refund_application_fee: bool = False
+
+
+class RefundCaseResponse(BaseModel):
+    id: int
+    order_id: int
+    agent_id: int
+    currency: str
+    customer_refund_amount_minor: int
+    ticket_refund_amount_minor: int
+    service_fee_refund_amount_minor: int
+    platform_cost_amount_minor: int
+    agent_debit_amount_minor: int
+    stripe_refund_id: Optional[str]
+    status: str
+    policy_applied: Optional[str]
+    reason: Optional[str]
+    created_at: datetime
+    completed_at: Optional[datetime]
+
+
+class RefundExecuteResponse(BaseModel):
+    refund_case: RefundCaseResponse
+    stripe_refund_status: Optional[str]
 
 
 @admin_router.get("/agents/{agent_id}/stats", response_model=AgentStatsResponse)
@@ -501,6 +784,590 @@ async def get_agent_stats(
         orders=orders_count,
         revenue=revenue_total,
         revenue_by_currency=revenue_by_currency,
+    )
+
+
+def _serialize_stripe_account(agent: AgentModel) -> StripeAccountResponse:
+    return StripeAccountResponse(
+        agent_id=agent.id,
+        payment_type=agent.payment_type,
+        stripe_account_id=agent.stripe_account_id,
+        stripe_account_status=agent.stripe_account_status,
+        stripe_charges_enabled=agent.stripe_charges_enabled,
+        stripe_payouts_enabled=agent.stripe_payouts_enabled,
+    )
+
+
+def _serialize_wallet(
+    wallet: AgentWalletModel,
+    policy: Optional[AgentRiskPolicyModel] = None,
+) -> AgentWalletResponse:
+    top_up_required_minor = 0
+    if policy is not None:
+        top_up_required_minor = calculate_top_up_required(wallet=wallet, policy=policy)
+
+    return AgentWalletResponse(
+        id=wallet.id,
+        agent_id=wallet.agent_id,
+        currency=wallet.currency,
+        reserve_balance_minor=int(wallet.reserve_balance_minor or 0),
+        credit_limit_minor=int(wallet.credit_limit_minor or 0),
+        negative_exposure_minor=int(wallet.negative_exposure_minor or 0),
+        warning_threshold_minor=int(wallet.warning_threshold_minor or 0),
+        block_threshold_minor=int(wallet.block_threshold_minor or 0),
+        status=wallet.status,
+        remaining_risk_capacity_minor=calculate_remaining_risk_capacity(wallet=wallet),
+        top_up_required_minor=top_up_required_minor,
+        last_warning_at=wallet.last_warning_at,
+        last_blocked_at=wallet.last_blocked_at,
+        created_at=wallet.created_at,
+        updated_at=wallet.updated_at,
+    )
+
+
+async def _serialize_risk_policy(
+    policy: AgentRiskPolicyModel,
+    db: AsyncSession,
+) -> AgentRiskPolicyResponse:
+    refund_event_count = await count_refund_events(
+        agent_id=policy.agent_id,
+        window_days=int(policy.refund_window_days or 0),
+        db=db,
+    )
+    return AgentRiskPolicyResponse(
+        agent_id=policy.agent_id,
+        allow_negative_balance=bool(policy.allow_negative_balance),
+        auto_block_enabled=bool(policy.auto_block_enabled),
+        refund_window_days=int(policy.refund_window_days or 0),
+        refund_event_warning_count=int(policy.refund_event_warning_count or 0),
+        refund_event_block_count=int(policy.refund_event_block_count or 0),
+        rolling_reserve_percent_bps=int(policy.rolling_reserve_percent_bps or 0),
+        min_reserve_balance_minor=int(policy.min_reserve_balance_minor or 0),
+        manual_override_status=policy.manual_override_status,
+        current_refund_event_count=refund_event_count,
+        created_at=policy.created_at,
+        updated_at=policy.updated_at,
+    )
+
+
+def _serialize_ledger_entry(entry: AgentLedgerEntryModel) -> AgentLedgerEntryResponse:
+    return AgentLedgerEntryResponse(
+        id=entry.id,
+        wallet_id=entry.wallet_id,
+        order_id=entry.order_id,
+        refund_case_id=entry.refund_case_id,
+        currency=entry.currency,
+        amount_minor=int(entry.amount_minor or 0),
+        direction=entry.direction,
+        entry_type=entry.entry_type,
+        source=entry.source,
+        source_id=entry.source_id,
+        description=entry.description,
+        metadata_json=entry.metadata_json or {},
+        created_at=entry.created_at,
+    )
+
+
+def _serialize_refund_case(refund_case: RefundCaseModel) -> RefundCaseResponse:
+    return RefundCaseResponse(
+        id=refund_case.id,
+        order_id=refund_case.order_id,
+        agent_id=refund_case.agent_id,
+        currency=refund_case.currency,
+        customer_refund_amount_minor=int(refund_case.customer_refund_amount_minor or 0),
+        ticket_refund_amount_minor=int(refund_case.ticket_refund_amount_minor or 0),
+        service_fee_refund_amount_minor=int(refund_case.service_fee_refund_amount_minor or 0),
+        platform_cost_amount_minor=int(refund_case.platform_cost_amount_minor or 0),
+        agent_debit_amount_minor=int(refund_case.agent_debit_amount_minor or 0),
+        stripe_refund_id=refund_case.stripe_refund_id,
+        status=refund_case.status,
+        policy_applied=refund_case.policy_applied,
+        reason=refund_case.reason,
+        created_at=refund_case.created_at,
+        completed_at=refund_case.completed_at,
+    )
+
+
+@admin_router.post("/agents/{agent_id}/stripe/account", response_model=StripeAccountResponse)
+async def create_agent_stripe_account(
+    agent_id: int,
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create or refresh a Stripe Connect account for an agent."""
+    result = await db.execute(select(AgentModel).where(AgentModel.id == agent_id))
+    agent = result.scalar_one_or_none()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    try:
+        if agent.stripe_account_id:
+            await refresh_account_status(agent=agent, db=db)
+        else:
+            await create_connected_account(agent=agent, db=db)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Stripe account update failed: {exc}") from exc
+
+    return _serialize_stripe_account(agent)
+
+
+@admin_router.post(
+    "/agents/{agent_id}/stripe/onboarding-link",
+    response_model=StripeOnboardingLinkResponse,
+)
+async def create_agent_stripe_onboarding_link(
+    agent_id: int,
+    payload: StripeOnboardingLinkRequest,
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate a Stripe onboarding link for an agent."""
+    result = await db.execute(select(AgentModel).where(AgentModel.id == agent_id))
+    agent = result.scalar_one_or_none()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    if not agent.stripe_account_id:
+        raise HTTPException(status_code=409, detail="Agent Stripe account is not configured")
+
+    rollout_settings = await get_admin_risk_settings(db=db)
+    default_url = str(rollout_settings["payment_success_url"])
+    refresh_url = payload.refresh_url or str(rollout_settings["stripe_connect_refresh_url"]) or default_url
+    return_url = payload.return_url or str(rollout_settings["stripe_connect_return_url"]) or default_url
+
+    try:
+        onboarding_link = create_onboarding_link(
+            agent=agent,
+            refresh_url=refresh_url,
+            return_url=return_url,
+        )
+    except (RuntimeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Stripe onboarding link failed: {exc}") from exc
+
+    account_response = _serialize_stripe_account(agent).model_dump()
+    account_response["onboarding_url"] = onboarding_link.url
+    return StripeOnboardingLinkResponse(**account_response)
+
+
+@admin_router.get("/agents/{agent_id}/stripe/status", response_model=StripeAccountResponse)
+async def get_agent_stripe_status(
+    agent_id: int,
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Refresh and return Stripe Connect account status for an agent."""
+    result = await db.execute(select(AgentModel).where(AgentModel.id == agent_id))
+    agent = result.scalar_one_or_none()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    if not agent.stripe_account_id:
+        raise HTTPException(status_code=409, detail="Agent Stripe account is not configured")
+
+    try:
+        await refresh_account_status(agent=agent, db=db)
+    except (RuntimeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Stripe status refresh failed: {exc}") from exc
+
+    return _serialize_stripe_account(agent)
+
+
+@admin_router.get("/agents/{agent_id}/wallets", response_model=AgentWalletListResponse)
+async def get_agent_wallets(
+    agent_id: int,
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return all settlement wallets for an agent."""
+    agent_result = await db.execute(select(AgentModel).where(AgentModel.id == agent_id))
+    agent = agent_result.scalar_one_or_none()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    policy = await ensure_risk_policy(agent_id=agent_id, db=db)
+    wallet_result = await db.execute(
+        select(AgentWalletModel)
+        .where(AgentWalletModel.agent_id == agent_id)
+        .order_by(AgentWalletModel.currency)
+    )
+    wallets = wallet_result.scalars().all()
+
+    return AgentWalletListResponse(
+        agent_id=agent_id,
+        agent_operational_status=agent.agent_operational_status,
+        wallets=[_serialize_wallet(wallet=wallet, policy=policy) for wallet in wallets],
+    )
+
+
+@admin_router.get("/risk/settings", response_model=RiskSettingsResponse)
+async def get_risk_settings(
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return global rollout settings used by risk and payment operations."""
+    return RiskSettingsResponse(**(await get_admin_risk_settings(db=db)))
+
+
+@admin_router.put("/risk/settings", response_model=RiskSettingsResponse)
+async def update_risk_settings(
+    payload: RiskSettingsUpdateRequest,
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Persist global rollout settings for risk and payment flows."""
+    updates = payload.model_dump(exclude_unset=True)
+    integer_fields = {
+        "refund_window_days",
+        "refund_event_warning_count",
+        "refund_event_block_count",
+        "rolling_reserve_percent_bps",
+        "min_reserve_balance_minor",
+        "default_credit_limit_minor",
+        "event_cache_ttl",
+    }
+    for field_name in integer_fields:
+        if field_name in updates and int(updates[field_name]) < 0:
+            raise HTTPException(status_code=400, detail=f"{field_name} must be non-negative")
+
+    if (
+        "refund_event_warning_count" in updates
+        and "refund_event_block_count" in updates
+        and int(updates["refund_event_block_count"]) < int(updates["refund_event_warning_count"])
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="refund_event_block_count must be greater than or equal to refund_event_warning_count",
+        )
+
+    if "default_zone" in updates and updates["default_zone"] not in {"test", "real"}:
+        raise HTTPException(status_code=400, detail="default_zone must be either 'test' or 'real'")
+
+    saved = await save_admin_risk_settings(db=db, updates=updates)
+    return RiskSettingsResponse(**saved)
+
+
+@admin_router.get("/agents/{agent_id}/risk-policy", response_model=AgentRiskPolicyResponse)
+async def get_agent_risk_policy(
+    agent_id: int,
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return or initialize the risk policy for one agent."""
+    agent_result = await db.execute(select(AgentModel).where(AgentModel.id == agent_id))
+    if not agent_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    policy = await ensure_risk_policy(agent_id=agent_id, db=db)
+    return await _serialize_risk_policy(policy=policy, db=db)
+
+
+@admin_router.put("/agents/{agent_id}/risk-policy", response_model=AgentRiskPolicyResponse)
+async def update_agent_risk_policy(
+    agent_id: int,
+    payload: AgentRiskPolicyUpdateRequest,
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update the per-agent risk policy and rerun the risk engine."""
+    agent_result = await db.execute(select(AgentModel).where(AgentModel.id == agent_id))
+    agent = agent_result.scalar_one_or_none()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    policy = await ensure_risk_policy(agent_id=agent_id, db=db)
+    updates = payload.model_dump(exclude_unset=True)
+    if "manual_override_status" in updates:
+        manual_override = updates["manual_override_status"]
+        allowed_statuses = {status.value for status in AgentOperationalStatus}
+        if manual_override is not None and manual_override not in allowed_statuses:
+            raise HTTPException(status_code=400, detail="Unsupported manual_override_status")
+
+    for field_name, value in updates.items():
+        setattr(policy, field_name, value)
+
+    wallet_result = await db.execute(
+        select(AgentWalletModel)
+        .where(AgentWalletModel.agent_id == agent_id)
+        .order_by(AgentWalletModel.id)
+    )
+    wallets = wallet_result.scalars().all()
+    for wallet in wallets:
+        await evaluate_agent_risk(agent=agent, wallet=wallet, db=db, policy=policy)
+
+    return await _serialize_risk_policy(policy=policy, db=db)
+
+
+@admin_router.get("/agents/{agent_id}/ledger", response_model=AgentLedgerResponse)
+async def get_agent_ledger(
+    agent_id: int,
+    currency: Optional[str] = None,
+    limit: int = 100,
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return recent ledger entries for an agent."""
+    agent_result = await db.execute(select(AgentModel).where(AgentModel.id == agent_id))
+    if not agent_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    query = (
+        select(AgentLedgerEntryModel)
+        .where(AgentLedgerEntryModel.agent_id == agent_id)
+        .order_by(AgentLedgerEntryModel.created_at.desc(), AgentLedgerEntryModel.id.desc())
+        .limit(max(1, min(limit, 500)))
+    )
+    if currency:
+        query = query.where(AgentLedgerEntryModel.currency == currency.upper())
+
+    result = await db.execute(query)
+    entries = result.scalars().all()
+    return AgentLedgerResponse(
+        agent_id=agent_id,
+        entries=[_serialize_ledger_entry(entry) for entry in entries],
+    )
+
+
+@admin_router.get("/agents/{agent_id}/risk-incidents", response_model=AgentRiskIncidentListResponse)
+async def get_agent_risk_incidents(
+    agent_id: int,
+    limit: int = 50,
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return refund incidents that currently feed the risk engine."""
+    agent_result = await db.execute(select(AgentModel).where(AgentModel.id == agent_id))
+    if not agent_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    policy = await ensure_risk_policy(agent_id=agent_id, db=db)
+    refund_event_count = await count_refund_events(
+        agent_id=agent_id,
+        window_days=int(policy.refund_window_days or 0),
+        db=db,
+    )
+    incidents_result = await db.execute(
+        select(RefundCaseModel)
+        .where(RefundCaseModel.agent_id == agent_id)
+        .order_by(RefundCaseModel.created_at.desc(), RefundCaseModel.id.desc())
+        .limit(max(1, min(limit, 200)))
+    )
+    incidents = incidents_result.scalars().all()
+
+    return AgentRiskIncidentListResponse(
+        agent_id=agent_id,
+        refund_event_count=refund_event_count,
+        incidents=[
+            AgentRiskIncidentResponse(
+                id=incident.id,
+                incident_type="refund",
+                status=incident.status,
+                currency=incident.currency,
+                amount_minor=int(incident.agent_debit_amount_minor or 0),
+                order_id=incident.order_id,
+                refund_case_id=incident.id,
+                reason=incident.reason,
+                created_at=incident.created_at,
+            )
+            for incident in incidents
+        ],
+    )
+
+
+@admin_router.post("/agents/{agent_id}/topup", response_model=AgentTopUpResponse)
+async def top_up_agent_wallet(
+    agent_id: int,
+    payload: AgentTopUpRequest,
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Record a wallet top-up and rerun the risk engine."""
+    if payload.amount_minor <= 0:
+        raise HTTPException(status_code=400, detail="amount_minor must be positive")
+
+    agent_result = await db.execute(select(AgentModel).where(AgentModel.id == agent_id))
+    agent = agent_result.scalar_one_or_none()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    entry = await post_entry(
+        posting=LedgerPosting(
+            agent_id=agent_id,
+            currency=payload.currency.upper(),
+            amount_minor=int(payload.amount_minor),
+            direction="credit",
+            entry_type="top_up",
+            source="admin_topup",
+            source_id=f"agent:{agent_id}:{payload.currency.upper()}:{int(_utcnow().timestamp())}",
+            description=payload.description or "Admin top-up",
+        ),
+        db=db,
+        idempotent=False,
+    )
+
+    wallet = await get_wallet_for_agent_currency(agent_id=agent_id, currency=payload.currency, db=db)
+    if not wallet:
+        raise HTTPException(status_code=500, detail="Wallet was not created")
+
+    await evaluate_agent_risk(agent=agent, wallet=wallet, db=db)
+    policy = await ensure_risk_policy(agent_id=agent_id, db=db)
+
+    return AgentTopUpResponse(
+        agent_id=agent_id,
+        entry_id=entry.id,
+        wallet=_serialize_wallet(wallet=wallet, policy=policy),
+    )
+
+
+@admin_router.post("/agents/{agent_id}/block", response_model=AgentStatusOverrideResponse)
+async def force_block_agent(
+    agent_id: int,
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Force-block an agent independently of current wallet state."""
+    agent_result = await db.execute(select(AgentModel).where(AgentModel.id == agent_id))
+    agent = agent_result.scalar_one_or_none()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    policy = await ensure_risk_policy(agent_id=agent_id, db=db)
+    policy.manual_override_status = AgentOperationalStatus.FORCE_BLOCKED.value
+    agent.agent_operational_status = AgentOperationalStatus.FORCE_BLOCKED.value
+
+    return AgentStatusOverrideResponse(
+        agent_id=agent_id,
+        agent_operational_status=agent.agent_operational_status,
+        manual_override_status=policy.manual_override_status,
+    )
+
+
+@admin_router.post("/agents/{agent_id}/unblock", response_model=AgentStatusOverrideResponse)
+async def unblock_agent(
+    agent_id: int,
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Clear manual override and recalculate the agent operational status."""
+    agent_result = await db.execute(select(AgentModel).where(AgentModel.id == agent_id))
+    agent = agent_result.scalar_one_or_none()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    policy = await ensure_risk_policy(agent_id=agent_id, db=db)
+    policy.manual_override_status = None
+
+    wallet_result = await db.execute(
+        select(AgentWalletModel)
+        .where(AgentWalletModel.agent_id == agent_id)
+        .order_by(AgentWalletModel.id)
+    )
+    wallets = wallet_result.scalars().all()
+    if wallets:
+        for wallet in wallets:
+            await evaluate_agent_risk(agent=agent, wallet=wallet, db=db, policy=policy)
+    else:
+        agent.agent_operational_status = AgentOperationalStatus.ACTIVE.value
+
+    return AgentStatusOverrideResponse(
+        agent_id=agent_id,
+        agent_operational_status=agent.agent_operational_status,
+        manual_override_status=policy.manual_override_status,
+    )
+
+
+@admin_router.post("/orders/{order_id}/refund/calculate", response_model=RefundCalculateResponse)
+async def calculate_order_refund(
+    order_id: int,
+    payload: RefundCalculateRequest,
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Calculate the financial outcome of a refund without calling Stripe."""
+    order_result = await db.execute(select(OrderModel).where(OrderModel.id == order_id))
+    order = order_result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.status not in {"PAID", "REFUNDED"}:
+        raise HTTPException(status_code=409, detail="Order is not refundable")
+
+    calculation = await calculate_refund(
+        order=order,
+        mode=payload.mode,
+        reason=payload.reason,
+        db=db,
+        amount_minor=payload.amount_minor,
+    )
+
+    return RefundCalculateResponse(
+        order_id=order.id,
+        agent_id=order.agent_id,
+        currency=order.currency,
+        customer_refund_amount_minor=calculation.customer_refund_amount_minor,
+        ticket_refund_amount_minor=calculation.ticket_refund_amount_minor,
+        service_fee_refund_amount_minor=calculation.service_fee_refund_amount_minor,
+        platform_cost_amount_minor=calculation.platform_cost_amount_minor,
+        agent_debit_amount_minor=calculation.agent_debit_amount_minor,
+        post_refund_status=calculation.post_refund_status,
+        top_up_required_minor=calculation.top_up_required_minor,
+    )
+
+
+@admin_router.post("/orders/{order_id}/refund/execute", response_model=RefundExecuteResponse)
+async def execute_order_refund(
+    order_id: int,
+    payload: RefundExecuteRequest,
+    current_user: AdminUser = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Submit a refund to Stripe and persist a processing refund case."""
+    order_result = await db.execute(select(OrderModel).where(OrderModel.id == order_id))
+    order = order_result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.status not in {"PAID", "REFUNDED"}:
+        raise HTTPException(status_code=409, detail="Order is not refundable")
+
+    calculation = await calculate_refund(
+        order=order,
+        mode=payload.mode,
+        reason=payload.reason,
+        db=db,
+        amount_minor=payload.amount_minor,
+    )
+    if calculation.customer_refund_amount_minor <= 0:
+        raise HTTPException(status_code=409, detail="Order does not have a refundable balance")
+
+    try:
+        await ensure_order_charge_id(order=order, db=db)
+        stripe_refund = create_order_refund(
+            order=order,
+            amount_minor=calculation.customer_refund_amount_minor,
+            reason=payload.reason,
+            reverse_transfer=payload.reverse_transfer,
+            refund_application_fee=payload.refund_application_fee,
+        )
+    except (RuntimeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Stripe refund failed: {exc}") from exc
+
+    refund_case = await create_pending_refund_case(
+        order=order,
+        calculation=calculation,
+        reason=payload.reason,
+        policy_applied=payload.mode,
+        stripe_refund_id=getattr(stripe_refund, "id", None),
+        db=db,
+    )
+    order.risk_state = "refund_submitted"
+
+    return RefundExecuteResponse(
+        refund_case=_serialize_refund_case(refund_case),
+        stripe_refund_status=getattr(stripe_refund, "status", None),
     )
 
 
@@ -1034,7 +1901,7 @@ async def get_dashboard_stats(
     revenue_by_currency = _serialize_currency_breakdown(revenue_by_currency_result.all())
 
     # Get today's orders and revenue
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = _utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     orders_today_result = await db.execute(
         select(func.count(OrderModel.id)).where(OrderModel.created_at >= today_start)
     )
@@ -1116,7 +1983,7 @@ async def get_sales_chart(
     from datetime import timedelta
     from sqlalchemy import cast, Date
 
-    now = datetime.utcnow()
+    now = _utcnow()
 
     # Determine date range based on period
     if period == 'week':

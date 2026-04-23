@@ -89,10 +89,15 @@
 
                 const data = await res.json();
 
-                // Initialize Stripe Embedded Checkout Page
+                // Initialize Stripe Embedded Checkout
                 const stripe = Stripe(data.publishable_key);
-                const checkout = await stripe.createEmbeddedCheckoutPage({
+                const checkout = await stripe.initEmbeddedCheckout({
                     fetchClientSecret: async () => data.client_secret,
+                    onComplete: () => {
+                        document.getElementById('checkout').innerHTML = '';
+                        document.getElementById('success').style.display = 'flex';
+                        setTimeout(() => tg.close(), 2000);
+                    },
                 });
 
                 // Hide loading, mount checkout

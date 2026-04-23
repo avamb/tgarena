@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Plus, Edit, Trash2, Copy, X, Save, Loader2, BarChart3, Users, ShoppingCart, DollarSign, AlertTriangle, ChevronLeft, ChevronRight, Search } from 'lucide-react'
+import { Plus, Edit, Trash2, Copy, X, Save, Loader2, BarChart3, Users, ShoppingCart, DollarSign, AlertTriangle, ChevronLeft, ChevronRight, Search, CreditCard, RefreshCw, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../store/auth'
 import { useBlocker, useNavigate, Link, useSearchParams } from 'react-router-dom'
@@ -12,6 +12,12 @@ interface Agent {
   token?: string
   zone: string
   is_active: boolean
+  payment_type: string
+  agent_operational_status: string
+  stripe_account_id?: string | null
+  stripe_account_status?: string | null
+  stripe_charges_enabled: boolean
+  stripe_payouts_enabled: boolean
   created_at: string
   deep_link?: string
 }
@@ -54,6 +60,7 @@ export default function Agents() {
   const [loading, setLoading] = useState(false)
   const [loadingAgents, setLoadingAgents] = useState(true)
   const [loadingStats, setLoadingStats] = useState(false)
+  const [stripeBusyAgentId, setStripeBusyAgentId] = useState<number | null>(null)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null)
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
@@ -80,6 +87,35 @@ export default function Agents() {
     } catch {
       return `${currency} ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     }
+  }
+
+  const getOperationalBadgeClass = (status: string) => {
+    switch (status) {
+      case 'blocked':
+        return 'badge-danger'
+      case 'warning':
+      case 'restricted':
+        return 'badge-warning'
+      default:
+        return 'badge-success'
+    }
+  }
+
+  const getStripeBadgeClass = (agent: Agent) => {
+    if (!agent.stripe_account_id) return 'badge-info'
+    if (agent.stripe_charges_enabled && agent.stripe_payouts_enabled) return 'badge-success'
+    if (agent.stripe_account_status === 'pending_review') return 'badge-warning'
+    return 'badge-warning'
+  }
+
+  const getStripeLabel = (agent: Agent) => {
+    if (!agent.stripe_account_id) return 'Not connected'
+    if (agent.stripe_charges_enabled && agent.stripe_payouts_enabled) return 'Ready'
+    return agent.stripe_account_status || 'Pending'
+  }
+
+  const mergeAgent = (agentId: number, patch: Partial<Agent>) => {
+    setAgents((prev) => prev.map((agent) => (agent.id === agentId ? { ...agent, ...patch } : agent)))
   }
 
   const handleUnauthorized = useCallback(() => {
@@ -207,6 +243,66 @@ export default function Agents() {
       toast.error('Failed to load agent stats')
     } finally {
       setLoadingStats(false)
+    }
+  }
+
+  const handleCreateOrRefreshStripe = async (agent: Agent) => {
+    setStripeBusyAgentId(agent.id)
+    try {
+      const response = await fetch(apiUrl(`/api/admin/agents/${agent.id}/stripe/account`), {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      })
+
+      if (response.ok) {
+        const stripeState = await response.json()
+        mergeAgent(agent.id, stripeState)
+        toast.success(agent.stripe_account_id ? 'Stripe status refreshed' : 'Stripe account created')
+      } else if (response.status === 401) {
+        handleUnauthorized()
+        return
+      } else {
+        const error = await response.json()
+        toast.error(error.detail || 'Failed to update Stripe account')
+      }
+    } catch (error) {
+      console.error('Failed to create or refresh Stripe account:', error)
+      toast.error('Failed to update Stripe account')
+    } finally {
+      setStripeBusyAgentId(null)
+    }
+  }
+
+  const handleOpenStripeOnboarding = async (agent: Agent) => {
+    setStripeBusyAgentId(agent.id)
+    try {
+      const response = await fetch(apiUrl(`/api/admin/agents/${agent.id}/stripe/onboarding-link`), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({}),
+      })
+
+      if (response.ok) {
+        const payload = await response.json()
+        mergeAgent(agent.id, payload)
+        window.open(payload.onboarding_url, '_blank', 'noopener,noreferrer')
+      } else if (response.status === 401) {
+        handleUnauthorized()
+        return
+      } else {
+        const error = await response.json()
+        toast.error(error.detail || 'Failed to create onboarding link')
+      }
+    } catch (error) {
+      console.error('Failed to create onboarding link:', error)
+      toast.error('Failed to create onboarding link')
+    } finally {
+      setStripeBusyAgentId(null)
     }
   }
 
@@ -428,7 +524,9 @@ export default function Agents() {
                 <th>Name</th>
                 <th>FID (Bill24)</th>
                 <th>Zone</th>
-                <th>Status</th>
+                <th>Operational</th>
+                <th>Payment</th>
+                <th>Stripe</th>
                 <th>Deep Link</th>
                 <th>Actions</th>
               </tr>
@@ -452,8 +550,18 @@ export default function Agents() {
                     </span>
                   </td>
                   <td>
-                    <span className={`badge ${agent.is_active ? 'badge-success' : 'badge-danger'}`}>
-                      {agent.is_active ? 'Active' : 'Inactive'}
+                    <span className={`badge ${agent.is_active ? getOperationalBadgeClass(agent.agent_operational_status) : 'badge-danger'}`}>
+                      {agent.is_active ? agent.agent_operational_status : 'inactive'}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`badge ${agent.payment_type === 'stripe_connect' ? 'badge-success' : 'badge-info'}`}>
+                      {agent.payment_type}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`badge ${getStripeBadgeClass(agent)}`}>
+                      {getStripeLabel(agent)}
                     </span>
                   </td>
                   <td>
@@ -474,6 +582,30 @@ export default function Agents() {
                       >
                         <BarChart3 className="h-5 w-5" />
                       </button>
+                      <button
+                        onClick={() => handleCreateOrRefreshStripe(agent)}
+                        className="text-emerald-600 hover:text-emerald-800"
+                        title={agent.stripe_account_id ? 'Refresh Stripe status' : 'Create Stripe account'}
+                        disabled={stripeBusyAgentId === agent.id}
+                      >
+                        {stripeBusyAgentId === agent.id ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : agent.stripe_account_id ? (
+                          <RefreshCw className="h-5 w-5" />
+                        ) : (
+                          <CreditCard className="h-5 w-5" />
+                        )}
+                      </button>
+                      {agent.stripe_account_id && !(agent.stripe_charges_enabled && agent.stripe_payouts_enabled) && (
+                        <button
+                          onClick={() => handleOpenStripeOnboarding(agent)}
+                          className="text-amber-600 hover:text-amber-800"
+                          title="Continue Stripe onboarding"
+                          disabled={stripeBusyAgentId === agent.id}
+                        >
+                          <ExternalLink className="h-5 w-5" />
+                        </button>
+                      )}
                       <button
                         onClick={() => handleEdit(agent)}
                         className="text-gray-600 hover:text-gray-800"
