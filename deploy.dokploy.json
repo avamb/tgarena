@@ -16,7 +16,9 @@
         "TELEGRAM_BOT_TOKEN",
         "DATABASE_URL",
         "REDIS_URL",
-        "ADMIN_JWT_SECRET"
+        "ADMIN_JWT_SECRET",
+        "ADMIN_DEFAULT_USERNAME",
+        "ADMIN_DEFAULT_PASSWORD"
       ],
       "environment_optional": [
         "TELEGRAM_WEBHOOK_URL",
